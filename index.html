@@ -652,59 +652,7 @@
 </div>
 
 <!-- ════ STEPS ════ -->
-<div id="steps">
-
-  <div class="step-page active" id="s2">
-    <div class="step-eyebrow"><span class="step-eyebrow-line"></span><span class="step-eyebrow-text">02 / 05 — Scene</span></div>
-    <h2 class="step-q">どんな<em>シーン</em>で行きますか？</h2>
-    <div class="step-rule"></div>
-    <div class="opt-wrap">
-      <button class="opt" onclick="pick('scene','ソロ');nextStep()">ソロ<small>一人の時間を楽しむ</small></button>
-      <button class="opt" onclick="pick('scene','カップル');nextStep()">カップル<small>二人でゆったり</small></button>
-      <button class="opt" onclick="pick('scene','ファミリー');nextStep()">ファミリー<small>家族みんなで</small></button>
-      <button class="opt" onclick="pick('scene','グループ');nextStep()">グループ<small>仲間と盛り上がる</small></button>
-    </div>
-  </div>
-
-  <div class="step-page" id="s3">
-    <div class="step-eyebrow"><span class="step-eyebrow-line"></span><span class="step-eyebrow-text">03 / 05 — Style</span></div>
-    <h2 class="step-q">あなたの<em>スタイル</em>は？</h2>
-    <div class="step-rule"></div>
-    <div class="opt-wrap">
-      <button class="opt" onclick="pick('style','ミニマリスト');nextStep()">ミニマリスト<small>軽く・少なく・スマートに</small></button>
-      <button class="opt" onclick="pick('style','ラグジュアリー');nextStep()">ラグジュアリー<small>快適・上質・こだわり</small></button>
-      <button class="opt" onclick="pick('style','ブッシュクラフト');nextStep()">ブッシュクラフト<small>自然と共に</small></button>
-      <button class="opt" onclick="pick('style','映えキャンプ');nextStep()">映えキャンプ<small>おしゃれ・インスタ映え</small></button>
-    </div>
-  </div>
-
-  <div class="step-page" id="s4">
-    <div class="step-eyebrow"><span class="step-eyebrow-line"></span><span class="step-eyebrow-text">04 / 05 — Season</span></div>
-    <h2 class="step-q">主にどんな<em>季節・天気</em>で？</h2>
-    <div class="step-rule"></div>
-    <div class="opt-wrap">
-      <button class="opt" onclick="pick('season','春秋');nextStep()">春・秋<small>過ごしやすい季節</small></button>
-      <button class="opt" onclick="pick('season','真夏');nextStep()">真夏<small>暑さ対策が必要</small></button>
-      <button class="opt" onclick="pick('season','雪中冬');nextStep()">雪中・冬<small>寒さに打ち勝つ</small></button>
-      <button class="opt" onclick="pick('season','雨キャン');nextStep()">雨キャン<small>雨でも楽しむ</small></button>
-    </div>
-  </div>
-
-  <div class="step-page" id="s5">
-    <div class="step-eyebrow"><span class="step-eyebrow-line"></span><span class="step-eyebrow-text">05 / 05 — Goal</span></div>
-    <h2 class="step-q">今一番の<em>悩み・目的</em>は？</h2>
-    <div class="step-rule"></div>
-    <div class="opt-wrap">
-      <button class="opt" onclick="pick('goal','軽量化');doSearch()">荷物を軽くしたい</button>
-      <button class="opt" onclick="pick('goal','節約');doSearch()">予算を抑えたい</button>
-      <button class="opt" onclick="pick('goal','映え');doSearch()">映えるサイトにしたい</button>
-      <button class="opt" onclick="pick('goal','快適');doSearch()">とにかく快適に</button>
-      <button class="opt" onclick="pick('goal','料理');doSearch()">キャンプ飯を極めたい</button>
-      <button class="opt" onclick="pick('goal','こだわらない');doSearch()">こだわらない</button>
-    </div>
-  </div>
-
-</div>
+<div id="steps"></div>
 
 <!-- ════ LOADING ════ -->
 <div id="loading">
@@ -744,6 +692,58 @@
   const TOTAL = 5;
   const ICONS = { テント:'⛺', 寝袋:'😴', チェア:'🪑', テーブル:'🪵', クッカー:'🍳', ランタン:'💡', 焚き火台:'🔥' };
 
+  // カテゴリ別質問定義
+  const CQ = {
+    'すべて': [
+      { eyebrow:'Scene',    q:'どんな<em>シーン</em>で行きますか？',   key:'scene',  opts:[{v:'ソロ',l:'ソロ',s:'一人の時間を楽しむ'},{v:'カップル',l:'カップル',s:'二人でゆったり'},{v:'ファミリー',l:'ファミリー',s:'家族みんなで'},{v:'グループ',l:'グループ',s:'仲間と盛り上がる'}] },
+      { eyebrow:'Style',    q:'あなたの<em>スタイル</em>は？',         key:'style',  opts:[{v:'ミニマリスト',l:'ミニマリスト',s:'軽く・少なく・スマートに'},{v:'ラグジュアリー',l:'ラグジュアリー',s:'快適・上質・こだわり'},{v:'ブッシュクラフト',l:'ブッシュクラフト',s:'自然と共に'},{v:'映えキャンプ',l:'映えキャンプ',s:'おしゃれ・インスタ映え'}] },
+      { eyebrow:'Season',   q:'主にどんな<em>季節・天気</em>で？',     key:'season', opts:[{v:'春秋',l:'春・秋',s:'過ごしやすい季節'},{v:'真夏',l:'真夏',s:'暑さ対策が必要'},{v:'雪中冬',l:'雪中・冬',s:'寒さに打ち勝つ'},{v:'雨キャン',l:'雨キャン',s:'雨でも楽しむ'}] },
+      { eyebrow:'Goal',     q:'今一番の<em>悩み・目的</em>は？',       key:'goal',   opts:[{v:'軽量化',l:'荷物を軽くしたい'},{v:'節約',l:'予算を抑えたい'},{v:'映え',l:'映えるサイトにしたい'},{v:'快適',l:'とにかく快適に'},{v:'料理',l:'キャンプ飯を極めたい'},{v:'こだわらない',l:'こだわらない'}] },
+    ],
+    'テント': [
+      { eyebrow:'People',   q:'何人で<em>使いますか</em>？',           key:'q1', opts:[{v:'ソロ（1人）',l:'ソロ',s:'1人'},{v:'2人（カップル）',l:'2人',s:'カップル'},{v:'ファミリー（3〜5人）',l:'ファミリー',s:'3〜5人'},{v:'グループ（6人以上）',l:'グループ',s:'6人以上'}] },
+      { eyebrow:'Style',    q:'どんな<em>スタイル</em>で使いますか？', key:'q2', opts:[{v:'オートキャンプ（車横付け）',l:'オートキャンプ',s:'車横付け'},{v:'バックパック（軽量重視）',l:'バックパック',s:'軽量重視'},{v:'登山・縦走',l:'登山・縦走'},{v:'フェス・イベント',l:'フェス・イベント'}] },
+      { eyebrow:'Priority', q:'<em>重視</em>することは？',             key:'q3', opts:[{v:'設営の簡単さ',l:'設営の簡単さ'},{v:'軽さ・コンパクト',l:'軽さ・コンパクト'},{v:'広さ・居住性',l:'広さ・居住性'},{v:'デザイン・見た目',l:'デザイン・見た目'}] },
+      { eyebrow:'Season',   q:'主に使う<em>季節</em>は？',             key:'q4', opts:[{v:'春・秋',l:'春・秋'},{v:'夏',l:'夏'},{v:'冬・雪中',l:'冬・雪中'},{v:'オールシーズン',l:'オールシーズン'}] },
+    ],
+    '寝袋': [
+      { eyebrow:'People',   q:'何人で<em>使いますか</em>？',           key:'q1', opts:[{v:'ソロ',l:'ソロ'},{v:'カップル（2人用）',l:'カップル',s:'2人用'},{v:'ファミリー（子供あり）',l:'ファミリー',s:'子供あり'}] },
+      { eyebrow:'Season',   q:'主に使う<em>季節・気温</em>は？',       key:'q2', opts:[{v:'夏（10℃以上）',l:'夏',s:'10℃以上'},{v:'春秋（0〜10℃）',l:'春・秋',s:'0〜10℃'},{v:'冬（-10℃以上）',l:'冬',s:'-10℃以上'},{v:'厳冬期（-10℃以下）',l:'厳冬期',s:'-10℃以下'}] },
+      { eyebrow:'Priority', q:'<em>重視</em>することは？',             key:'q3', opts:[{v:'軽さ・コンパクト',l:'軽さ・コンパクト'},{v:'暖かさ',l:'暖かさ'},{v:'価格',l:'価格'},{v:'寝心地',l:'寝心地'}] },
+      { eyebrow:'Style',    q:'キャンプ<em>スタイル</em>は？',         key:'q4', opts:[{v:'バックパック・登山',l:'バックパック・登山'},{v:'オートキャンプ',l:'オートキャンプ'},{v:'どちらも',l:'どちらも'}] },
+    ],
+    'チェア': [
+      { eyebrow:'People',   q:'何人分<em>必要ですか</em>？',           key:'q1', opts:[{v:'1人分',l:'1人分'},{v:'複数（まとめて揃えたい）',l:'複数',s:'まとめて揃えたい'}] },
+      { eyebrow:'Scene',    q:'どんな<em>シーン</em>で使いますか？',   key:'q2', opts:[{v:'ソロキャンプ',l:'ソロキャンプ'},{v:'ファミリーキャンプ',l:'ファミリーキャンプ'},{v:'グループキャンプ',l:'グループキャンプ'},{v:'フェス・デイキャンプ',l:'フェス・デイキャンプ'}] },
+      { eyebrow:'Priority', q:'<em>重視</em>することは？',             key:'q3', opts:[{v:'軽さ・携帯性',l:'軽さ・携帯性'},{v:'座り心地・リラックス',l:'座り心地・リラックス'},{v:'ローチェア（焚き火向き）',l:'ローチェア',s:'焚き火向き'},{v:'デザイン',l:'デザイン'}] },
+      { eyebrow:'Budget',   q:'<em>予算</em>感は？',                   key:'q4', opts:[{v:'〜3,000円',l:'〜3,000円'},{v:'3,000〜10,000円',l:'3,000〜1万円'},{v:'10,000〜30,000円',l:'1万〜3万円'},{v:'こだわらない',l:'こだわらない'}] },
+    ],
+    'テーブル': [
+      { eyebrow:'People',   q:'何人で<em>使いますか</em>？',           key:'q1', opts:[{v:'ソロ（1〜2人）',l:'ソロ',s:'1〜2人'},{v:'ファミリー（3〜5人）',l:'ファミリー',s:'3〜5人'},{v:'グループ（6人以上）',l:'グループ',s:'6人以上'}] },
+      { eyebrow:'Scene',    q:'どんな<em>シーン</em>で？',             key:'q2', opts:[{v:'ソロキャンプ',l:'ソロキャンプ'},{v:'ファミリーキャンプ',l:'ファミリーキャンプ'},{v:'グループキャンプ',l:'グループキャンプ'},{v:'バックパック',l:'バックパック'}] },
+      { eyebrow:'Priority', q:'<em>重視</em>することは？',             key:'q3', opts:[{v:'軽さ・コンパクト',l:'軽さ・コンパクト'},{v:'広さ・安定感',l:'広さ・安定感'},{v:'デザイン',l:'デザイン'},{v:'価格',l:'価格'}] },
+      { eyebrow:'Height',   q:'高さの<em>好み</em>は？',               key:'q4', opts:[{v:'ロースタイル（地面に近い）',l:'ロースタイル',s:'地面に近い'},{v:'ハイスタイル（椅子に合わせた高さ）',l:'ハイスタイル',s:'椅子に合わせた高さ'},{v:'どちらでも',l:'どちらでも'}] },
+    ],
+    'クッカー': [
+      { eyebrow:'People',   q:'何人分<em>料理しますか</em>？',         key:'q1', opts:[{v:'1人',l:'1人'},{v:'2〜3人',l:'2〜3人'},{v:'4人以上',l:'4人以上'}] },
+      { eyebrow:'Cooking',  q:'どんな<em>料理</em>がしたいですか？',   key:'q2', opts:[{v:'簡単・時短（インスタント）',l:'簡単・時短',s:'インスタント・パック飯'},{v:'本格料理（炒め物・煮込み）',l:'本格料理',s:'炒め物・煮込み'},{v:'焚き火料理',l:'焚き火料理'},{v:'なんでも',l:'なんでも'}] },
+      { eyebrow:'Heat',     q:'<em>熱源</em>は何ですか？',             key:'q3', opts:[{v:'ガスバーナー',l:'ガスバーナー'},{v:'焚き火',l:'焚き火'},{v:'アルコールストーブ',l:'アルコールストーブ'},{v:'IH・カセットコンロ',l:'IH・カセットコンロ'}] },
+      { eyebrow:'Priority', q:'<em>重視</em>することは？',             key:'q4', opts:[{v:'軽さ・コンパクト',l:'軽さ・コンパクト'},{v:'使いやすさ',l:'使いやすさ'},{v:'本格的な調理性能',l:'本格的な調理性能'},{v:'価格',l:'価格'}] },
+    ],
+    'ランタン': [
+      { eyebrow:'Usage',    q:'主な<em>用途</em>は？',                 key:'q1', opts:[{v:'テーブルの明かり',l:'テーブルの明かり'},{v:'サイト全体を照らす',l:'サイト全体'},{v:'就寝時の手元灯',l:'就寝時の手元灯'},{v:'雰囲気・インテリア',l:'雰囲気・インテリア'}] },
+      { eyebrow:'Power',    q:'<em>電源</em>の好みは？',               key:'q2', opts:[{v:'ガス・燃料系（ムード重視）',l:'ガス・燃料系',s:'ムード重視'},{v:'充電式LED（便利さ重視）',l:'充電式LED',s:'便利さ重視'},{v:'電池式',l:'電池式'},{v:'どれでも',l:'どれでも'}] },
+      { eyebrow:'Priority', q:'<em>重視</em>することは？',             key:'q3', opts:[{v:'明るさ',l:'明るさ'},{v:'雰囲気・デザイン',l:'雰囲気・デザイン'},{v:'軽さ・携帯性',l:'軽さ・携帯性'},{v:'価格',l:'価格'}] },
+      { eyebrow:'Style',    q:'キャンプ<em>スタイル</em>は？',         key:'q4', opts:[{v:'ソロ',l:'ソロ'},{v:'ファミリー・グループ',l:'ファミリー・グループ'},{v:'バックパック',l:'バックパック'}] },
+    ],
+    '焚き火台': [
+      { eyebrow:'People',   q:'何人で<em>使いますか</em>？',           key:'q1', opts:[{v:'ソロ',l:'ソロ'},{v:'2〜3人',l:'2〜3人'},{v:'ファミリー・グループ',l:'ファミリー・グループ'}] },
+      { eyebrow:'Purpose',  q:'何を<em>したいですか</em>？',           key:'q2', opts:[{v:'焚き火を楽しむ（雰囲気重視）',l:'焚き火を楽しむ',s:'雰囲気重視'},{v:'料理もしたい',l:'料理もしたい'},{v:'焚き火も料理も両方',l:'両方楽しみたい'}] },
+      { eyebrow:'Priority', q:'<em>重視</em>することは？',             key:'q3', opts:[{v:'軽さ・コンパクト',l:'軽さ・コンパクト'},{v:'安定感・使いやすさ',l:'安定感・使いやすさ'},{v:'デザイン',l:'デザイン'},{v:'価格',l:'価格'}] },
+      { eyebrow:'Style',    q:'キャンプ<em>スタイル</em>は？',         key:'q4', opts:[{v:'オートキャンプ',l:'オートキャンプ'},{v:'バックパック・徒歩',l:'バックパック・徒歩'},{v:'どちらも',l:'どちらも'}] },
+    ],
+  };
+
   // スクロールでnavボーダー
   window.addEventListener('scroll', () => {
     document.getElementById('nav').classList.toggle('bordered', window.scrollY > 10);
@@ -759,7 +759,28 @@
 
   function pick(k, v) { sel[k] = v; }
 
+  function renderSteps(category) {
+    const qs = CQ[category] || CQ['すべて'];
+    document.getElementById('steps').innerHTML = qs.map((q, i) => {
+      const n = i + 2;
+      const isLast = i === qs.length - 1;
+      const btns = q.opts.map(o => {
+        const action = isLast
+          ? `pick('${q.key}','${o.v.replace(/'/g, "\\'")}');doSearch()`
+          : `pick('${q.key}','${o.v.replace(/'/g, "\\'")}');nextStep()`;
+        return `<button class="opt" onclick="${action}">${o.l}${o.s ? `<small>${o.s}</small>` : ''}</button>`;
+      }).join('');
+      return `<div class="step-page${i === 0 ? ' active' : ''}" id="s${n}">
+        <div class="step-eyebrow"><span class="step-eyebrow-line"></span><span class="step-eyebrow-text">0${n} / 05 — ${q.eyebrow}</span></div>
+        <h2 class="step-q">${q.q}</h2>
+        <div class="step-rule"></div>
+        <div class="opt-wrap">${btns}</div>
+      </div>`;
+    }).join('');
+  }
+
   function goStep2() {
+    renderSteps(sel.category);
     document.getElementById('hero').style.display = 'none';
     document.getElementById('cat-section').style.display = 'none';
     document.getElementById('steps').style.display = 'block';
@@ -816,15 +837,16 @@
       ? ['テント','寝袋','チェア','テーブル','クッカー','ランタン','焚き火台']
       : [sel.category];
 
+    const isAll = sel.category === 'すべて';
+    const apiBody = isAll
+      ? { campStyle: sel.scene, style: sel.style, season: sel.season, goal: sel.goal, categories: cats }
+      : { campStyle: [sel.q1, sel.q2, sel.q3, sel.q4].filter(Boolean).join('、'), style: 'こだわらない', season: 'こだわらない', goal: 'こだわらない', categories: cats };
+
     try {
       const res = await fetch('/api/recommend', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          campStyle: sel.scene, style: sel.style,
-          season: sel.season, goal: sel.goal,
-          categories: cats
-        })
+        body: JSON.stringify(apiBody)
       });
       const json = await res.json();
       render(json.results || []);
@@ -838,7 +860,10 @@
     document.getElementById('loading').style.display = 'none';
     document.getElementById('results').style.display = 'block';
 
-    const labels = [sel.category, sel.scene, sel.style, sel.season, sel.goal].filter(Boolean);
+    const isAll = sel.category === 'すべて';
+    const labels = isAll
+      ? [sel.category, sel.scene, sel.style, sel.season, sel.goal].filter(Boolean)
+      : [sel.category, sel.q1, sel.q2, sel.q3, sel.q4].filter(Boolean);
     document.getElementById('res-meta').textContent = labels.join(' · ');
 
     document.getElementById('res-inner').innerHTML = results.map(r => `
@@ -879,8 +904,6 @@
     document.getElementById('hero').style.display = 'grid';
     document.getElementById('cat-section').style.display = 'block';
     document.getElementById('back-btn').classList.remove('visible');
-    document.querySelectorAll('.step-page').forEach(p => p.classList.remove('active'));
-    document.getElementById('s2').classList.add('active');
     setProgress(1);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
