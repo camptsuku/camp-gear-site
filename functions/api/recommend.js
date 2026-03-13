@@ -29,6 +29,7 @@ export async function onRequestPost(context) {
 
   const GEMINI_API_KEY       = (env.GEMINI_API_KEY || '').trim();
   const RAKUTEN_APP_ID       = (env.RAKUTEN_APP_ID || 'ef16f377-c183-4449-8808-da74cd5622e1').trim();
+  const RAKUTEN_ACCESS_KEY   = (env.RAKUTEN_ACCESS_KEY || '').trim();
   const RAKUTEN_AFFILIATE_ID = (env.RAKUTEN_AFFILIATE_ID || '51b76b74.e928f44c.51b76b75.f3fe3626').trim();
   const AMAZON_TAG           = (env.AMAZON_ASSOCIATE_TAG || 'campjoutsukur-22').trim();
 
@@ -117,15 +118,18 @@ export async function onRequestPost(context) {
       try {
         const params = new URLSearchParams({
           applicationId: RAKUTEN_APP_ID,
+          accessKey:     RAKUTEN_ACCESS_KEY,
           affiliateId:   RAKUTEN_AFFILIATE_ID,
           keyword:       p.searchKeyword,
           hits:          '1',
           sort:          '-reviewCount',
           imageFlag:     '1',
           minPrice:      '1',
+          format:        'json',
         });
         const r = await fetch(
-          `https://app.rakuten.co.jp/services/api/IchibaItem/Search/20170706?${params}`
+          `https://openapi.rakuten.co.jp/ichibams/api/IchibaItem/Search/20220601?${params}`,
+          { headers: { 'Origin': 'https://camp-gear-site.pages.dev' } }
         );
         const d = await r.json();
         if (!d.error && d.Items?.[0]?.Item) {
