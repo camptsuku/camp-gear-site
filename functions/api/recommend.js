@@ -110,34 +110,52 @@ export async function onRequestPost(context) {
   }
 
   // ── Step 2: 楽天 API で商品画像・価格・URLを取得 ───────────────────
+  const RAKUTEN_ENDPOINT = 'https://openapi.rakuten.co.jp/ichibams/api/IchibaItem/Search/20220601';
+  const RAKUTEN_ORIGIN = 'https://camp-gear-site.pages.dev';
+  const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+  async function fetchRakuten(keyword) {
+    const params = new URLSearchParams({
+      applicationId: RAKUTEN_APP_ID,
+      accessKey:     RAKUTEN_ACCESS_KEY,
+      affiliateId:   RAKUTEN_AFFILIATE_ID,
+      keyword,
+      hits:     '1',
+      sort:     '-reviewCount',
+      imageFlag:'1',
+      minPrice: '1',
+      format:   'json',
+    });
+    const res = await fetch(`${RAKUTEN_ENDPOINT}?${params}`, {
+      headers: { 'Origin': RAKUTEN_ORIGIN },
+    });
+    const d = await res.json();
+    if (d.statusCode === 429) {
+      // レートリミット時は1.2秒待ってリトライ
+      await sleep(1200);
+      const res2 = await fetch(`${RAKUTEN_ENDPOINT}?${params}`, {
+        headers: { 'Origin': RAKUTEN_ORIGIN },
+      });
+      return res2.json();
+    }
+    return d;
+  }
+
   const results = [];
   for (const rec of recommendations) {
     const products = [];
     for (const p of (rec.products || []).slice(0, 5)) {
       let rakutenItem = null;
       try {
-        const params = new URLSearchParams({
-          applicationId: RAKUTEN_APP_ID,
-          accessKey:     RAKUTEN_ACCESS_KEY,
-          affiliateId:   RAKUTEN_AFFILIATE_ID,
-          keyword:       p.searchKeyword,
-          hits:          '1',
-          sort:          '-reviewCount',
-          imageFlag:     '1',
-          minPrice:      '1',
-          format:        'json',
-        });
-        const r = await fetch(
-          `https://openapi.rakuten.co.jp/ichibams/api/IchibaItem/Search/20220601?${params}`,
-          { headers: { 'Origin': 'https://camp-gear-site.pages.dev' } }
-        );
-        const d = await r.json();
-        if (!d.error && d.Items?.[0]?.Item) {
+        const d = await fetchRakuten(p.searchKeyword);
+        if (d.Items?.[0]?.Item) {
           rakutenItem = d.Items[0].Item;
         }
       } catch (_) {
         // 楽天失敗時はAmazonのみで表示
       }
+      // 連続リクエストのレートリミット回避（300ms待機）
+      await sleep(300);
 
       const amazonUrl = `https://www.amazon.co.jp/s?k=${encodeURIComponent(p.searchKeyword)}&tag=${AMAZON_TAG}`;
 
