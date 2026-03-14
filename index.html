@@ -152,7 +152,7 @@
     .hero-title .jp {
       display: block;
       font-family: 'Zen Old Mincho', serif;
-      font-size: clamp(2.4rem, 6vw, 5.4rem);
+      font-size: clamp(1.75rem, 6vw, 5.4rem);
       color: var(--text);
     }
     .hero-title .jp em {
@@ -162,10 +162,10 @@
     }
     .hero-title .en {
       display: block;
-      font-size: clamp(0.65rem, 1.5vw, 0.85rem);
-      letter-spacing: 0.6em; color: var(--sub);
+      font-size: clamp(0.55rem, 1.5vw, 0.85rem);
+      letter-spacing: 0.4em; color: var(--sub);
       text-transform: uppercase; margin-top: 18px;
-      font-weight: 300;
+      font-weight: 300; white-space: nowrap;
     }
 
     /* ── DIVIDER ── */
@@ -185,15 +185,15 @@
 
     /* ── TAGS ── */
     .hero-tags {
-      display: flex; flex-wrap: wrap; gap: 8px;
+      display: flex; flex-wrap: nowrap; gap: 6px;
       justify-content: center; margin-bottom: 60px;
       opacity: 0; animation: rise 0.7s 0.85s ease forwards;
     }
     .hero-tag {
-      padding: 5px 16px;
+      padding: 5px 10px;
       border: 1px solid var(--border);
-      font-size: 0.6rem; letter-spacing: 0.25em; color: var(--sub);
-      text-transform: uppercase;
+      font-size: 0.58rem; letter-spacing: 0.2em; color: var(--sub);
+      text-transform: uppercase; white-space: nowrap;
     }
 
     /* ── SCROLL CUE ── */
@@ -372,10 +372,11 @@
       flex-direction: column; align-items: center; justify-content: center; gap: 32px;
     }
     .loader-img-wrap {
-      position: relative; width: 180px; height: 160px;
+      display: grid;
+      place-items: center;
     }
     .loader-img {
-      position: absolute; top: 0; left: 0;
+      grid-area: 1 / 1;
       width: 180px; height: auto;
       animation: float 2.4s ease-in-out infinite;
       filter: drop-shadow(0 12px 24px rgba(200,169,110,0.18));
@@ -390,8 +391,8 @@
       100% { transform: translateY(0px) rotate(0deg); }
     }
     .loader-text {
-      font-family: 'Cormorant Garamond', serif;
-      font-size: 1rem; font-style: italic; font-weight: 300;
+      font-family: 'Noto Sans JP', sans-serif;
+      font-size: 0.8rem; font-weight: 300;
       color: var(--sub2); letter-spacing: 0.15em;
       transition: opacity 0.4s ease;
     }
