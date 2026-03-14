@@ -29,6 +29,8 @@ const EXCLUDE_WORDS = [
   '自在', 'フック', 'リング', '補強',
   // バッグ・バックパック類
   'バックパック', 'リュック', 'ザック', 'パック',
+  // 家電・屋内調理器具
+  'レンジ', '電子レンジ', 'IH', '電気', '炊飯器', 'ホットプレート', 'たこ焼き', '電動',
 ];
 
 // カテゴリごとにタイトルに含まれるべきキーワード（いずれか1つ以上）
@@ -77,7 +79,7 @@ export async function onRequestPost(context) {
   const conditionText = [campStyle, budget ? `予算${budget}` : ''].filter(Boolean).join('、') || 'こだわらない';
   const prompt = `キャンプギア専門家として、以下の条件に合う日本で人気・高評価の${categoryList}本体製品を5件特定してください。
 ユーザー条件: ${conditionText}
-本体製品のみ（アクセサリー・パーツ・収納ケース除く）。JSONのみ:
+必ずアウトドア・キャンプで使用する道具のみ提案すること。家電・食品・衣類は絶対に含めないこと。本体製品のみ（アクセサリー・パーツ・収納ケース除く）。JSONのみ:
 {"recommendations":[{"category":"テント","reason":"選定理由100字以内","products":[{"productName":"スノーピーク アメニティドームM","brand":"スノーピーク","searchKeyword":"スノーピーク アメニティドームM テント"}]}]}`;
 
   let recommendations;
