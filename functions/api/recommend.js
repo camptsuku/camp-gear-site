@@ -276,20 +276,22 @@ export async function onRequestPost(context) {
     const seenBrandPrices = new Set();
     const brandCount = new Map();
 
-    // メイン検索: Geminiの商品キーワードで順番に検索
-    for (const p of group.geminiProducts.slice(0, 10)) {
-      if (products.length >= 20) break;
-      try {
-        const keyword = buildSearchKeyword(p.searchKeyword, category, brand);
-        const d = await fetchRakuten(keyword);
-        const items = findGoodItems(d, category, 4);
-        const amazonUrl = `https://www.amazon.co.jp/s?k=${encodeURIComponent(p.searchKeyword)}&tag=${AMAZON_TAG}`;
-        for (const item of items) addRakutenItem(item, p.brand, amazonUrl, products, seenBrandTitles, seenBrandPrices, brandCount);
-      } catch (_) {}
-      await sleep(300);
+    // メイン検索: Geminiの全キーワードを並列リクエスト → 結果を逐次処理
+    const mainFetches = group.geminiProducts.slice(0, 10).map(p => {
+      const keyword = buildSearchKeyword(p.searchKeyword, category, brand);
+      const amazonUrl = `https://www.amazon.co.jp/s?k=${encodeURIComponent(p.searchKeyword)}&tag=${AMAZON_TAG}`;
+      return fetchRakuten(keyword)
+        .then(d => ({ p, d, amazonUrl }))
+        .catch(() => null);
+    });
+    const mainResults = await Promise.all(mainFetches);
+    for (const r of mainResults) {
+      if (!r || products.length >= 20) continue;
+      const items = findGoodItems(r.d, category, 4);
+      for (const item of items) addRakutenItem(item, r.p.brand, r.amazonUrl, products, seenBrandTitles, seenBrandPrices, brandCount);
     }
 
-    // フォールバック検索: 20件未満の場合はカテゴリキーワードを変えて追加検索
+    // フォールバック検索: 20件未満の場合は2キーワードを並列リクエスト
     if (products.length < 20) {
       const catKw = CATEGORY_KEYWORDS[category]?.[0] || category;
       const brandPrefix = brand ? `${brand} ` : '';
@@ -297,16 +299,18 @@ export async function onRequestPost(context) {
         `${brandPrefix}アウトドア ${catKw} おすすめ`,
         `${brandPrefix}キャンプ ${catKw} 人気`,
       ];
-      for (const kw of fallbacks) {
-        if (products.length >= 20) break;
-        try {
-          const d = await fetchRakuten(kw);
-          const need = 20 - products.length;
-          const items = findGoodItems(d, category, need);
-          const amazonUrl = `https://www.amazon.co.jp/s?k=${encodeURIComponent(kw)}&tag=${AMAZON_TAG}`;
-          for (const item of items) addRakutenItem(item, null, amazonUrl, products, seenBrandTitles, seenBrandPrices, brandCount);
-        } catch (_) {}
-        await sleep(300);
+      const fallbackFetches = fallbacks.map(kw => {
+        const amazonUrl = `https://www.amazon.co.jp/s?k=${encodeURIComponent(kw)}&tag=${AMAZON_TAG}`;
+        return fetchRakuten(kw)
+          .then(d => ({ d, amazonUrl }))
+          .catch(() => null);
+      });
+      const fallbackResults = await Promise.all(fallbackFetches);
+      for (const r of fallbackResults) {
+        if (!r || products.length >= 20) continue;
+        const need = 20 - products.length;
+        const items = findGoodItems(r.d, category, need);
+        for (const item of items) addRakutenItem(item, null, r.amazonUrl, products, seenBrandTitles, seenBrandPrices, brandCount);
       }
     }
 
