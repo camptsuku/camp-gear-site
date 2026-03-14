@@ -1039,7 +1039,7 @@
                 ? `<img class="prod-img" src="${p.imageUrl}" alt="${p.title}" loading="lazy">`
                 : `<div class="prod-no-img">${ICONS[r.category]||'🎒'}</div>`}
               <div class="prod-body">
-                ${p.brand ? `<p class="prod-brand">${p.brand}</p>` : ''}
+                <p class="prod-brand">${p.brand || 'ノーブランド'}</p>
                 <p class="prod-name">${p.title}</p>
                 ${p.price ? `<p class="prod-price">${p.price}</p>` : ''}
                 <div class="prod-btns">
