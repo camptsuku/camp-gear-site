@@ -73,33 +73,13 @@ export async function onRequestPost(context) {
   const categoryList = categories?.join('、') || 'テント、焚き火台、寝袋、チェア、テーブル、クッカー、ランタン';
 
   // ── Step 1: Gemini で人気商品名を特定 ──────────────────────────────
-  const prompt = `あなたはキャンプギアの専門家です。以下の条件のキャンパーに最適なギアを、日本のキャンプ系ブログ・レビューサイト・口コミを検索して調査し、実際に高評価で人気の具体的な商品名・ブランドを特定してください。
-
-シーン: ${campStyle || 'ファミリーキャンプ'}
-スタイル: ${style || 'こだわらない'}
-季節: ${season || '春秋'}
-目的・悩み: ${goal || 'こだわらない'}
+  // 旧プロンプト（30商品、詳細指示版）は git 履歴を参照
+  const prompt = `キャンプギア専門家として日本で人気・高評価の商品を特定してください。
+条件: ${campStyle || 'こだわらない'}
 予算: ${budget || 'こだわらない'}
-必要なカテゴリ: ${categoryList}
-
-各カテゴリについて30商品を調査して特定してください。
-【重要】各商品は必ず指定されたカテゴリの本体製品のみを提案してください。アクセサリー・パーツ・付属品・収納ケース・替えパーツ等は絶対に含めないでください。例えばテントカテゴリにはテント本体のみ、寝袋カテゴリには寝袋本体のみを提案してください。
-必ずJSON形式のみで返してください（前置きや説明文は一切不要）。形式：
-{
-  "recommendations": [
-    {
-      "category": "テント",
-      "reason": "選定理由（日本語100字以内）",
-      "products": [
-        {
-          "productName": "スノーピーク アメニティドームM",
-          "brand": "スノーピーク",
-          "searchKeyword": "スノーピーク アメニティドームM"
-        }
-      ]
-    }
-  ]
-}`;
+カテゴリ: ${categoryList}
+各カテゴリ10件（本体製品のみ、アクセサリー・パーツ除く）。JSONのみ回答:
+{"recommendations":[{"category":"テント","reason":"選定理由100字以内","products":[{"productName":"スノーピーク アメニティドームM","brand":"スノーピーク","searchKeyword":"スノーピーク アメニティドームM テント"}]}]}`;
 
   let recommendations;
   try {
@@ -111,7 +91,7 @@ export async function onRequestPost(context) {
         body: JSON.stringify({
           contents: [{ role: 'user', parts: [{ text: prompt }] }],
           tools: [{ googleSearch: {} }],
-          generationConfig: { temperature: 0.7, maxOutputTokens: 8192 },
+          generationConfig: { temperature: 0.7, maxOutputTokens: 65536 },
         }),
       }
     );
@@ -187,14 +167,16 @@ export async function onRequestPost(context) {
     return d;
   }
 
-  // 除外ワードに引っかからず、カテゴリキーワードを含む最初のアイテムを返す
-  function findGoodItem(d, category) {
+  // 除外ワードに引っかからず、カテゴリキーワードを含むアイテムを最大n件返す
+  function findGoodItems(d, category, n = 4) {
     const items = d.Items || [];
+    const found = [];
     for (const item of items) {
+      if (found.length >= n) break;
       const name = item.Item?.itemName || '';
-      if (!isExcluded(name) && matchesCategory(name, category)) return item.Item;
+      if (!isExcluded(name) && matchesCategory(name, category)) found.push(item.Item);
     }
-    return null;
+    return found;
   }
 
   // 楽天検索キーワードにカテゴリキーワードを付加する
@@ -208,50 +190,49 @@ export async function onRequestPost(context) {
   for (const rec of recommendations) {
     const products = [];
     const seenTitles = new Set(); // 重複除外用
-    for (const p of (rec.products || []).slice(0, 30)) {
-      let rakutenItem = null;
+    // Gemini から 10 件のキーワードを受け取り、各検索結果から複数件取得して合計30件を目標にする
+    for (const p of (rec.products || []).slice(0, 10)) {
+      if (products.length >= 30) break;
+      let rakutenItems = [];
       try {
         const keyword = buildSearchKeyword(p.searchKeyword, rec.category);
         const d = await fetchRakuten(keyword);
-        rakutenItem = findGoodItem(d, rec.category);
-
-        // フォールバック: ブランド名 + カテゴリで再検索
-        if (!rakutenItem && p.brand) {
-          await sleep(300);
-          const d2 = await fetchRakuten(p.brand + ' ' + rec.category);
-          rakutenItem = findGoodItem(d2, rec.category);
-        }
+        rakutenItems = findGoodItems(d, rec.category, 4);
       } catch (_) {
-        // 楽天失敗時はAmazonのみで表示
+        // 楽天失敗時はスキップ
       }
       // 連続リクエストのレートリミット回避（300ms待機）
       await sleep(300);
 
       const amazonUrl = `https://www.amazon.co.jp/s?k=${encodeURIComponent(p.searchKeyword)}&tag=${AMAZON_TAG}`;
 
-      if (rakutenItem) {
-        // 楽天の画像URL: ?_ex=128x128 を除去して元サイズを使う
-        const rawImg = rakutenItem.mediumImageUrls?.[0]?.imageUrl || null;
-        const imageUrl = rawImg ? rawImg.replace(/\?.*$/, '') : null;
-        const cleanTitle = rakutenItem.itemName.replace(/【[^】]*】|★[^★]*★|\[[^\]]*\]/g, '').trim().slice(0, 60);
+      if (rakutenItems.length > 0) {
+        for (const rakutenItem of rakutenItems) {
+          if (products.length >= 30) break;
+          // 楽天の画像URL: ?_ex=128x128 を除去して元サイズを使う
+          const rawImg = rakutenItem.mediumImageUrls?.[0]?.imageUrl || null;
+          const imageUrl = rawImg ? rawImg.replace(/\?.*$/, '') : null;
+          const cleanTitle = rakutenItem.itemName.replace(/【[^】]*】|★[^★]*★|\[[^\]]*\]/g, '').trim().slice(0, 60);
 
-        // タイトル先頭15文字で重複チェック
-        const titleKey = cleanTitle.slice(0, 15);
-        if (seenTitles.has(titleKey)) continue;
-        seenTitles.add(titleKey);
+          // タイトル先頭15文字で重複チェック
+          const titleKey = cleanTitle.slice(0, 15);
+          if (seenTitles.has(titleKey)) continue;
+          seenTitles.add(titleKey);
 
-        products.push({
-          title:         cleanTitle,
-          brand:         p.brand || null,
-          price:         `¥${Number(rakutenItem.itemPrice).toLocaleString()}（税込）`,
-          imageUrl,
-          affiliateUrl:  rakutenItem.affiliateUrl || rakutenItem.itemUrl,
-          amazonUrl,
-          reviewCount:   rakutenItem.reviewCount   || 0,
-          reviewAverage: rakutenItem.reviewAverage || 0,
-        });
+          products.push({
+            title:         cleanTitle,
+            brand:         p.brand || null,
+            price:         `¥${Number(rakutenItem.itemPrice).toLocaleString()}（税込）`,
+            imageUrl,
+            affiliateUrl:  rakutenItem.affiliateUrl || rakutenItem.itemUrl,
+            amazonUrl,
+            reviewCount:   rakutenItem.reviewCount   || 0,
+            reviewAverage: rakutenItem.reviewAverage || 0,
+          });
+        }
       } else {
-        // タイトル先頭15文字で重複チェック
+        // 楽天で取得できなかった場合は Amazon リンクのみで1件追加
+        if (products.length >= 30) continue;
         const titleKey = p.productName.slice(0, 15);
         if (seenTitles.has(titleKey)) continue;
         seenTitles.add(titleKey);
