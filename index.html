@@ -394,7 +394,8 @@
       font-family: 'Noto Sans JP', sans-serif;
       font-size: 0.8rem; font-weight: 300;
       color: var(--sub2); letter-spacing: 0.15em;
-      transition: opacity 0.4s ease;
+      transition: opacity 0.35s ease;
+      min-height: 1.4em;
     }
     .loader-text.fade { opacity: 0; }
     .loader-dots { display: flex; gap: 8px; }
@@ -501,6 +502,9 @@
       background: var(--border);
       border: 1px solid var(--border);
     }
+    @media (max-width: 1280px) {
+      .prod-grid { grid-template-columns: repeat(4, 1fr); }
+    }
     .prod-card {
       position: relative;
       background: var(--card);
@@ -588,7 +592,7 @@
     footer a:hover { opacity: 1; }
 
     /* ── RESPONSIVE ── */
-    @media (max-width: 1024px) {
+    @media (max-width: 900px) {
       .prod-grid { grid-template-columns: repeat(3, 1fr); }
     }
     @media (max-width: 768px) {
@@ -765,12 +769,16 @@
   let _imgTimer = null;
 
   function startLoaderMessages() {
+    // 既存タイマーを必ずクリア（重複防止）
+    stopLoaderMessages();
+
     const el = document.getElementById('loader-text');
     const img1 = document.getElementById('loader-img1');
     const img2 = document.getElementById('loader-img2');
 
-    // 文言ローテーション
+    // 文言ローテーション：フェードアウト完了後にテキスト変更 → フェードイン
     let idx = 0;
+    el.classList.remove('fade');
     el.textContent = LOADING_MESSAGES[0];
     _loaderTimer = setInterval(() => {
       el.classList.add('fade');
@@ -778,7 +786,7 @@
         idx = (idx + 1) % LOADING_MESSAGES.length;
         el.textContent = LOADING_MESSAGES[idx];
         el.classList.remove('fade');
-      }, 400);
+      }, 400); // transition 0.35s より長めにして確実にフェードアウト完了後に切り替え
     }, 2800);
 
     // 画像交互切り替え（3.5秒ごと）
