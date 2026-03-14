@@ -61,7 +61,7 @@ export async function onRequestPost(context) {
 目的・悩み: ${goal || 'こだわらない'}
 必要なカテゴリ: ${categoryList}
 
-各カテゴリについて10商品を調査して特定してください。
+各カテゴリについて30商品を調査して特定してください。
 必ずJSON形式のみで返してください（前置きや説明文は一切不要）。形式：
 {
   "recommendations": [
@@ -129,7 +129,7 @@ export async function onRequestPost(context) {
       accessKey:     RAKUTEN_ACCESS_KEY,
       affiliateId:   RAKUTEN_AFFILIATE_ID,
       keyword,
-      hits:     '5',
+      hits:     '30',
       sort:     '-reviewCount',
       imageFlag:'1',
       minPrice: '1',
@@ -162,7 +162,7 @@ export async function onRequestPost(context) {
   const results = [];
   for (const rec of recommendations) {
     const products = [];
-    for (const p of (rec.products || []).slice(0, 10)) {
+    for (const p of (rec.products || []).slice(0, 30)) {
       let rakutenItem = null;
       try {
         const d = await fetchRakuten(p.searchKeyword);
