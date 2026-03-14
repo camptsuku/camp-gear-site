@@ -769,6 +769,7 @@
     'あなたにベストな組み合わせを選定中...',
   ];
   let _loaderTimer = null;
+  let _loaderTimeout = null;
   let _imgTimer = null;
 
   function startLoaderMessages() {
@@ -779,17 +780,18 @@
     const img1 = document.getElementById('loader-img1');
     const img2 = document.getElementById('loader-img2'); // imgs配列でも使用
 
-    // 文言ローテーション：フェードアウト完了後にテキスト変更 → フェードイン
+    // 文言ローテーション：フェードアウト → テキスト差し替え → フェードイン
     let idx = 0;
     el.classList.remove('fade');
     el.textContent = LOADING_MESSAGES[0];
     _loaderTimer = setInterval(() => {
       el.classList.add('fade');
-      setTimeout(() => {
+      _loaderTimeout = setTimeout(() => {
+        _loaderTimeout = null;
         idx = (idx + 1) % LOADING_MESSAGES.length;
         el.textContent = LOADING_MESSAGES[idx];
         el.classList.remove('fade');
-      }, 400); // transition 0.35s より長めにして確実にフェードアウト完了後に切り替え
+      }, 400);
     }, 2800);
 
     // 画像順番切り替え（3.5秒ごと、4枚ループ）
@@ -810,8 +812,10 @@
 
   function stopLoaderMessages() {
     clearInterval(_loaderTimer);
+    clearTimeout(_loaderTimeout);
     clearInterval(_imgTimer);
     _loaderTimer = null;
+    _loaderTimeout = null;
     _imgTimer = null;
   }
   const ICONS = { テント:'⛺', 寝袋:'😴', チェア:'🪑', テーブル:'🪵', クッカー:'🍳', ランタン:'💡', 焚き火台:'🔥', タープ:'⛱️' };
