@@ -396,6 +396,21 @@
       color: var(--sub2); letter-spacing: 0.15em;
       min-height: 1.4em;
     }
+    .loader-progress-wrap {
+      width: 260px; height: 2px;
+      background: rgba(200,169,110,0.2);
+      border-radius: 1px; overflow: hidden;
+    }
+    .loader-progress-bar {
+      height: 100%; width: 0%;
+      background: var(--gold);
+      transition: width 0.4s ease;
+    }
+    .loader-progress-pct {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 0.72rem; font-weight: 500;
+      color: var(--gold); letter-spacing: 0.25em;
+    }
     .loader-dots { display: flex; gap: 8px; }
     .loader-dot {
       width: 4px; height: 4px; border-radius: 50%;
@@ -722,6 +737,10 @@
     <img class="loader-img" id="loader-img4" src="loading4.png" alt="loading">
   </div>
   <p class="loader-text" id="loader-text">あなたの回答を分析中...</p>
+  <div class="loader-progress-wrap">
+    <div class="loader-progress-bar" id="loader-progress-bar"></div>
+  </div>
+  <p class="loader-progress-pct" id="loader-progress-pct">0%</p>
   <div class="loader-dots">
     <div class="loader-dot"></div>
     <div class="loader-dot"></div>
@@ -757,29 +776,41 @@
   let stepHistory = [];
 
   // ローディング文言ローテーション
-  const LOADING_MESSAGES = [
-    'あなたの回答を分析中...',
-    '数千件のギアデータを照合しています...',
-    'ブログ・口コミ・レビューを精査中...',
-    '最適なスペックを絞り込んでいます...',
-    '価格帯とコスパを検証中...',
-    'プロキャンパーの評価を参照中...',
-    'あなたにベストな組み合わせを選定中...',
+  // 進捗率に対応するメッセージ定義
+  const PROGRESS_STEPS = [
+    { pct:  0, text: 'あなたの回答を分析中...' },
+    { pct: 15, text: '数千件のギアデータを照合しています...' },
+    { pct: 30, text: 'ブログ・口コミ・レビューを精査中...' },
+    { pct: 48, text: '最適なスペックを絞り込み中...' },
+    { pct: 63, text: '価格帯とコスパを検証中...' },
+    { pct: 78, text: 'プロキャンパーの評価を参照中...' },
+    { pct: 90, text: 'あなたにベストな組み合わせを選定中...' },
+    { pct: 100, text: '完了!' },
   ];
-  let _loaderTimer = null;
+  let _progressTimer = null;
   let _imgTimer = null;
+  let _currentPct = 0;
+
+  function _setProgress(pct) {
+    _currentPct = pct;
+    document.getElementById('loader-progress-bar').style.width = pct + '%';
+    document.getElementById('loader-progress-pct').textContent = Math.round(pct) + '%';
+    // 進捗率に対応するメッセージを選択
+    let msg = PROGRESS_STEPS[0].text;
+    for (const s of PROGRESS_STEPS) { if (pct >= s.pct) msg = s.text; }
+    document.getElementById('loader-text').textContent = msg;
+  }
 
   function startLoaderMessages() {
     stopLoaderMessages();
+    _setProgress(0);
 
-    const el = document.getElementById('loader-text');
-    let idx = 0;
-    // テキストを即時セットし、以降はsetIntervalで直接上書き（setTimeout不使用）
-    el.textContent = LOADING_MESSAGES[0];
-    _loaderTimer = setInterval(() => {
-      idx = (idx + 1) % LOADING_MESSAGES.length;
-      el.textContent = LOADING_MESSAGES[idx];
-    }, 2800);
+    // 進捗をゆっくり95%まで自動進行（残り量の2%ずつ、300msごと）
+    _progressTimer = setInterval(() => {
+      const remaining = 95 - _currentPct;
+      if (remaining <= 0.3) return;
+      _setProgress(_currentPct + Math.max(0.4, remaining * 0.025));
+    }, 300);
 
     // 画像順番切り替え（3.5秒ごと、4枚ループ）
     const imgs = [
@@ -798,10 +829,17 @@
   }
 
   function stopLoaderMessages() {
-    clearInterval(_loaderTimer);
+    clearInterval(_progressTimer);
     clearInterval(_imgTimer);
-    _loaderTimer = null;
+    _progressTimer = null;
     _imgTimer = null;
+  }
+
+  // API完了時に100%まで進め、コールバックを呼ぶ
+  function completeProgress(callback) {
+    stopLoaderMessages();
+    _setProgress(100);
+    setTimeout(callback, 350);
   }
   const ICONS = { テント:'⛺', 寝袋:'😴', チェア:'🪑', テーブル:'🪵', クッカー:'🍳', ランタン:'💡', 焚き火台:'🔥', タープ:'⛱️' };
 
@@ -989,8 +1027,7 @@
         body: JSON.stringify(apiBody)
       });
       const json = await res.json();
-      stopLoaderMessages();
-      render(json.results || []);
+      completeProgress(() => render(json.results || []));
     } catch(e) {
       stopLoaderMessages();
       alert('エラーが発生しました。再度お試しください。');
