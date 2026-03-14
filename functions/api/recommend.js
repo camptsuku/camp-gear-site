@@ -199,30 +199,47 @@ export async function onRequestPost(context) {
     }
   }
 
+  // ── タイトルからブランド名を抽出 ──
+  function extractBrandFromTitle(itemName) {
+    // 先頭の英数字ブランド名（例: BALMUDA、Coleman、LOGOS）
+    const ascii = itemName.match(/^([A-Za-z][A-Za-z0-9]*(?:[ \-][A-Z][A-Za-z0-9]*)?)/);
+    if (ascii) return ascii[1].trim();
+    // 先頭のカタカナ語（例: コールマン、スノーピーク）
+    const kana = itemName.match(/^([\u30A0-\u30FF]+)/);
+    if (kana) return kana[1];
+    return null;
+  }
+
   // ── 重複判定ヘルパー ──
-  // 条件1: タイトル先頭15文字が同じ / 条件2: ブランド＋価格が両方一致
-  function isDuplicate(cleanTitle, brand, price, seenTitles, seenSignatures) {
+  // 条件1: タイトル先頭15文字が同じ
+  // 条件2: ブランド＋価格が両方一致
+  // 条件3: 価格が同じ＋タイトル先頭10文字が同じ（同一商品の別ショップ出品）
+  function isDuplicate(cleanTitle, brand, price, seenTitles, seenSignatures, seenPriceTitles) {
     if (seenTitles.has(cleanTitle.slice(0, 15))) return true;
     if (brand && price && seenSignatures.has(`${brand}|${price}`)) return true;
+    if (price && seenPriceTitles.has(`${price}|${cleanTitle.slice(0, 10)}`)) return true;
     return false;
   }
-  function recordSeen(cleanTitle, brand, price, seenTitles, seenSignatures) {
+  function recordSeen(cleanTitle, brand, price, seenTitles, seenSignatures, seenPriceTitles) {
     seenTitles.add(cleanTitle.slice(0, 15));
     if (brand && price) seenSignatures.add(`${brand}|${price}`);
+    if (price) seenPriceTitles.add(`${price}|${cleanTitle.slice(0, 10)}`);
   }
 
   // ── 楽天アイテムを products 配列に追加する共通処理 ──
-  function addRakutenItem(rakutenItem, brand, amazonUrl, products, seenTitles, seenSignatures) {
+  function addRakutenItem(rakutenItem, geminiBrand, amazonUrl, products, seenTitles, seenSignatures, seenPriceTitles) {
     if (products.length >= 10) return false;
     const rawImg = rakutenItem.mediumImageUrls?.[0]?.imageUrl || null;
     const imageUrl = rawImg ? rawImg.replace(/\?.*$/, '') : null;
     const cleanTitle = rakutenItem.itemName.replace(/【[^】]*】|★[^★]*★|\[[^\]]*\]/g, '').trim().slice(0, 60);
     const price = `¥${Number(rakutenItem.itemPrice).toLocaleString()}（税込）`;
-    if (isDuplicate(cleanTitle, brand, price, seenTitles, seenSignatures)) return false;
-    recordSeen(cleanTitle, brand, price, seenTitles, seenSignatures);
+    // ブランド: 楽天フィールド → Gemini提供 → タイトル抽出 の優先順
+    const brand = (rakutenItem.brandName || rakutenItem.makerName || geminiBrand || extractBrandFromTitle(rakutenItem.itemName)) || null;
+    if (isDuplicate(cleanTitle, brand, price, seenTitles, seenSignatures, seenPriceTitles)) return false;
+    recordSeen(cleanTitle, brand, price, seenTitles, seenSignatures, seenPriceTitles);
     products.push({
       title:         cleanTitle,
-      brand:         brand || null,
+      brand,
       price,
       imageUrl,
       affiliateUrl:  rakutenItem.affiliateUrl || rakutenItem.itemUrl,
@@ -239,6 +256,7 @@ export async function onRequestPost(context) {
     const products = [];
     const seenTitles = new Set();
     const seenSignatures = new Set();
+    const seenPriceTitles = new Set();
 
     // メイン検索: Geminiの商品キーワードで順番に検索
     for (const p of group.geminiProducts.slice(0, 5)) {
@@ -248,7 +266,7 @@ export async function onRequestPost(context) {
         const d = await fetchRakuten(keyword);
         const items = findGoodItems(d, category, 3);
         const amazonUrl = `https://www.amazon.co.jp/s?k=${encodeURIComponent(p.searchKeyword)}&tag=${AMAZON_TAG}`;
-        for (const item of items) addRakutenItem(item, p.brand, amazonUrl, products, seenTitles, seenSignatures);
+        for (const item of items) addRakutenItem(item, p.brand, amazonUrl, products, seenTitles, seenSignatures, seenPriceTitles);
       } catch (_) {}
       await sleep(300);
     }
@@ -267,7 +285,7 @@ export async function onRequestPost(context) {
           const need = 10 - products.length;
           const items = findGoodItems(d, category, need);
           const amazonUrl = `https://www.amazon.co.jp/s?k=${encodeURIComponent(kw)}&tag=${AMAZON_TAG}`;
-          for (const item of items) addRakutenItem(item, null, amazonUrl, products, seenTitles, seenSignatures);
+          for (const item of items) addRakutenItem(item, null, amazonUrl, products, seenTitles, seenSignatures, seenPriceTitles);
         } catch (_) {}
         await sleep(300);
       }
