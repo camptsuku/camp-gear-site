@@ -805,11 +805,12 @@
     stopLoaderMessages();
     _setProgress(0);
 
-    // 進捗をゆっくり95%まで自動進行（残り量の2%ずつ、300msごと）
+    // 進捗をゆっくり99%まで自動進行（残り量の1.5%ずつ、300msごと）
+    // 終盤ほど減速し、止まって見えないよう99%まで漸近
     _progressTimer = setInterval(() => {
-      const remaining = 95 - _currentPct;
-      if (remaining <= 0.3) return;
-      _setProgress(_currentPct + Math.max(0.4, remaining * 0.025));
+      const remaining = 99 - _currentPct;
+      if (remaining <= 0.05) return;
+      _setProgress(_currentPct + remaining * 0.015);
     }, 300);
 
     // 画像順番切り替え（3.5秒ごと、4枚ループ）
