@@ -720,6 +720,8 @@
   <div class="loader-img-wrap">
     <img class="loader-img active" id="loader-img1" src="loading1.png" alt="loading">
     <img class="loader-img" id="loader-img2" src="loading2.png" alt="loading">
+    <img class="loader-img" id="loader-img3" src="loading3.png" alt="loading">
+    <img class="loader-img" id="loader-img4" src="loading4.png" alt="loading">
   </div>
   <p class="loader-text" id="loader-text">あなたの回答を分析中...</p>
   <div class="loader-dots">
@@ -775,7 +777,7 @@
 
     const el = document.getElementById('loader-text');
     const img1 = document.getElementById('loader-img1');
-    const img2 = document.getElementById('loader-img2');
+    const img2 = document.getElementById('loader-img2'); // imgs配列でも使用
 
     // 文言ローテーション：フェードアウト完了後にテキスト変更 → フェードイン
     let idx = 0;
@@ -790,14 +792,19 @@
       }, 400); // transition 0.35s より長めにして確実にフェードアウト完了後に切り替え
     }, 2800);
 
-    // 画像交互切り替え（3.5秒ごと）
+    // 画像順番切り替え（3.5秒ごと、4枚ループ）
+    const imgs = [
+      img1,
+      img2,
+      document.getElementById('loader-img3'),
+      document.getElementById('loader-img4'),
+    ];
     let imgIdx = 0;
-    img1.classList.add('active');
-    img2.classList.remove('active');
+    imgs.forEach((img, i) => img.classList.toggle('active', i === 0));
     _imgTimer = setInterval(() => {
-      imgIdx = imgIdx === 0 ? 1 : 0;
-      img1.classList.toggle('active', imgIdx === 0);
-      img2.classList.toggle('active', imgIdx === 1);
+      imgs[imgIdx].classList.remove('active');
+      imgIdx = (imgIdx + 1) % imgs.length;
+      imgs[imgIdx].classList.add('active');
     }, 3500);
   }
 
