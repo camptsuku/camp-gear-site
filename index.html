@@ -754,6 +754,7 @@
   const sel = {};
   let step = 2;
   let TOTAL = 6;
+  let stepHistory = [];
 
   // ローディング文言ローテーション
   const LOADING_MESSAGES = [
@@ -848,7 +849,7 @@
     ],
     'クッカー': [
       { eyebrow:'People',   q:'何人分<em>作りますか</em>？',              key:'q1', opts:[{v:'1人',l:'1人'},{v:'2〜3人',l:'2〜3人'},{v:'4人以上',l:'4人以上'}] },
-      { eyebrow:'Cooking',  q:'どんな<em>料理</em>がしたいですか？',      key:'q2', opts:[{v:'お湯沸かし・簡単調理',l:'簡単調理',s:'お湯沸かし・インスタント'},{v:'炒め物・本格料理',l:'本格料理',s:'炒め物・煮込み'},{v:'焚き火調理',l:'焚き火調理'},{v:'なんでも',l:'なんでも'}] },
+      { eyebrow:'Cooking',  q:'どんな<em>料理</em>がしたいですか？',      key:'q2', opts:[{v:'お湯沸かし・簡単調理',l:'簡単調理',s:'お湯沸かし・インスタント'},{v:'炒め物・本格料理',l:'本格料理',s:'炒め物・煮込み'},{v:'焚き火調理',l:'焚き火調理',skip:1},{v:'なんでも',l:'なんでも'}] },
       { eyebrow:'Heat',     q:'<em>熱源</em>は？',                        key:'q3', opts:[{v:'ガスバーナー',l:'ガスバーナー'},{v:'焚き火',l:'焚き火'},{v:'アルコールストーブ',l:'アルコールストーブ'},{v:'なんでも',l:'なんでも'}] },
       { eyebrow:'Priority', q:'<em>重視</em>することは？',                key:'q4', opts:[{v:'軽さ・コンパクト',l:'軽さ・コンパクト'},{v:'使いやすさ・焦げ付きにくさ',l:'使いやすさ',s:'焦げ付きにくさ'},{v:'耐久性',l:'耐久性'},{v:'価格',l:'価格'}] },
       { eyebrow:'Budget',   q:'ご<em>予算</em>は？',                      key:'q5', opts:[{v:'〜3,000円',l:'〜3,000円'},{v:'3,000〜8,000円',l:'3,000〜8,000円'},{v:'8,000〜20,000円',l:'8,000〜20,000円'},{v:'20,000円以上',l:'20,000円以上'}] },
@@ -888,9 +889,14 @@
       const n = i + 2;
       const isLast = i === qs.length - 1;
       const btns = q.opts.map(o => {
-        const action = isLast
-          ? `pick('${q.key}','${o.v.replace(/'/g, "\\'")}');doSearch()`
-          : `pick('${q.key}','${o.v.replace(/'/g, "\\'")}');nextStep()`;
+        let action;
+        if (isLast) {
+          action = `pick('${q.key}','${o.v.replace(/'/g, "\\'")}');doSearch()`;
+        } else if (o.skip) {
+          action = `pick('${q.key}','${o.v.replace(/'/g, "\\'")}');jumpStep(${o.skip})`;
+        } else {
+          action = `pick('${q.key}','${o.v.replace(/'/g, "\\'")}');nextStep()`;
+        }
         return `<button class="opt" onclick="${action}">${o.l}${o.s ? `<small>${o.s}</small>` : ''}</button>`;
       }).join('');
       return `<div class="step-page${i === 0 ? ' active' : ''}" id="s${n}">
@@ -911,6 +917,7 @@
     document.getElementById('steps').style.display = 'block';
     document.getElementById('back-btn').classList.add('visible');
     step = 2;
+    stepHistory = [2];
     showStep(2);
     setProgress(2);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -918,6 +925,16 @@
 
   function nextStep() {
     step++;
+    stepHistory.push(step);
+    showStep(step);
+    setProgress(step);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  // skipCount 個の質問をスキップして次へ進む
+  function jumpStep(skipCount) {
+    step += 1 + skipCount;
+    stepHistory.push(step);
     showStep(step);
     setProgress(step);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -932,22 +949,25 @@
     if (document.getElementById('results').style.display === 'block') {
       document.getElementById('results').style.display = 'none';
       document.getElementById('steps').style.display = 'block';
-      step = TOTAL;
-      showStep(TOTAL);
-      setProgress(TOTAL);
+      // 最後に訪問したステップに戻る
+      step = stepHistory[stepHistory.length - 1] || TOTAL;
+      showStep(step);
+      setProgress(step);
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
-    if (step <= 2) {
+    if (stepHistory.length <= 1) {
       document.getElementById('steps').style.display = 'none';
       document.getElementById('hero').style.display = 'grid';
       document.getElementById('cat-section').style.display = 'block';
       document.getElementById('back-btn').classList.remove('visible');
+      stepHistory = [];
       setProgress(1);
       document.getElementById('cat-section').scrollIntoView({ behavior: 'smooth' });
       return;
     }
-    step--;
+    stepHistory.pop(); // 現在のステップを除去
+    step = stepHistory[stepHistory.length - 1];
     showStep(step);
     setProgress(step);
     window.scrollTo({ top: 0, behavior: 'smooth' });
