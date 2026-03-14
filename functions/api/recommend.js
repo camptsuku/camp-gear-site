@@ -27,6 +27,8 @@ const EXCLUDE_WORDS = [
   '交換', '補修', 'パーツ', '部品', '替え', '延長', 'アダプター',
   'グランドシート', 'インナーマット', 'フレーム', '継ぎ', 'ガイライン',
   '自在', 'フック', 'リング', '補強',
+  // バッグ・バックパック類
+  'バックパック', 'リュック', 'ザック', 'パック',
 ];
 
 // カテゴリごとにタイトルに含まれるべきキーワード（いずれか1つ以上）
@@ -200,6 +202,7 @@ export async function onRequestPost(context) {
   const results = [];
   for (const rec of recommendations) {
     const products = [];
+    const seenTitles = new Set(); // 重複除外用
     for (const p of (rec.products || []).slice(0, 30)) {
       let rakutenItem = null;
       try {
@@ -225,9 +228,15 @@ export async function onRequestPost(context) {
         // 楽天の画像URL: ?_ex=128x128 を除去して元サイズを使う
         const rawImg = rakutenItem.mediumImageUrls?.[0]?.imageUrl || null;
         const imageUrl = rawImg ? rawImg.replace(/\?.*$/, '') : null;
+        const cleanTitle = rakutenItem.itemName.replace(/【[^】]*】|★[^★]*★|\[[^\]]*\]/g, '').trim().slice(0, 60);
+
+        // タイトル先頭15文字で重複チェック
+        const titleKey = cleanTitle.slice(0, 15);
+        if (seenTitles.has(titleKey)) continue;
+        seenTitles.add(titleKey);
 
         products.push({
-          title:         rakutenItem.itemName.replace(/【[^】]*】|★[^★]*★|\[[^\]]*\]/g, '').trim().slice(0, 60),
+          title:         cleanTitle,
           brand:         p.brand || null,
           price:         `¥${Number(rakutenItem.itemPrice).toLocaleString()}（税込）`,
           imageUrl,
@@ -237,6 +246,11 @@ export async function onRequestPost(context) {
           reviewAverage: rakutenItem.reviewAverage || 0,
         });
       } else {
+        // タイトル先頭15文字で重複チェック
+        const titleKey = p.productName.slice(0, 15);
+        if (seenTitles.has(titleKey)) continue;
+        seenTitles.add(titleKey);
+
         products.push({
           title:         p.productName,
           brand:         p.brand || null,
