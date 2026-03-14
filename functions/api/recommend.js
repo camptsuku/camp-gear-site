@@ -73,12 +73,11 @@ export async function onRequestPost(context) {
   const categoryList = categories?.join('、') || 'テント、焚き火台、寝袋、チェア、テーブル、クッカー、ランタン';
 
   // ── Step 1: Gemini で人気商品名を特定 ──────────────────────────────
-  // 旧プロンプト（30商品、詳細指示版）は git 履歴を参照
-  const prompt = `キャンプギア専門家として日本で人気・高評価の商品を特定してください。
-条件: ${campStyle || 'こだわらない'}
-予算: ${budget || 'こだわらない'}
-カテゴリ: ${categoryList}
-各カテゴリ10件（本体製品のみ、アクセサリー・パーツ除く）。JSONのみ回答:
+  // 旧プロンプト（詳細版）は git 履歴 a646992 を参照
+  const conditionText = [campStyle, budget ? `予算${budget}` : ''].filter(Boolean).join('、') || 'こだわらない';
+  const prompt = `キャンプギア専門家として、以下の条件に合う日本で人気・高評価の${categoryList}本体製品を10件特定してください。
+ユーザー条件: ${conditionText}
+本体製品のみ（アクセサリー・パーツ・収納ケース除く）。JSONのみ:
 {"recommendations":[{"category":"テント","reason":"選定理由100字以内","products":[{"productName":"スノーピーク アメニティドームM","brand":"スノーピーク","searchKeyword":"スノーピーク アメニティドームM テント"}]}]}`;
 
   let recommendations;
