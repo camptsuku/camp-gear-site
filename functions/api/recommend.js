@@ -145,12 +145,17 @@ export async function onRequestPost(context) {
   const RAKUTEN_ORIGIN = 'https://camp-gear-site.pages.dev';
   const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
-  // 予算を楽天API価格パラメータに変換
+  // 予算文字列を楽天API価格パラメータに動的変換
+  // 対応フォーマット: 「〜N円」「N〜M円」「N円以上」（カンマ区切り数字も可）
   function getBudgetParams(b) {
-    if (b === '〜5,000円')        return { minPrice: '1',     maxPrice: '5000'  };
-    if (b === '5,000〜15,000円')  return { minPrice: '5001',  maxPrice: '15000' };
-    if (b === '15,000〜30,000円') return { minPrice: '15001', maxPrice: '30000' };
-    if (b === '30,000円以上')     return { minPrice: '30001'                    };
+    if (!b) return { minPrice: '1' };
+    const n = (s) => s.replace(/,/g, '');
+    const maxOnly = b.match(/^〜([\d,]+)円$/);
+    if (maxOnly) return { minPrice: '1', maxPrice: n(maxOnly[1]) };
+    const range = b.match(/^([\d,]+)〜([\d,]+)円$/);
+    if (range) return { minPrice: String(Number(n(range[1])) + 1), maxPrice: n(range[2]) };
+    const minOnly = b.match(/^([\d,]+)円以上$/);
+    if (minOnly) return { minPrice: String(Number(n(minOnly[1])) + 1) };
     return { minPrice: '1' };
   }
   const bp = getBudgetParams(budget);
