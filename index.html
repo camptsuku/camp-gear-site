@@ -371,11 +371,18 @@
       min-height: 100svh;
       flex-direction: column; align-items: center; justify-content: center; gap: 32px;
     }
+    .loader-img-wrap {
+      position: relative; width: 180px; height: 160px;
+    }
     .loader-img {
-      width: 160px; height: auto;
+      position: absolute; top: 0; left: 0;
+      width: 180px; height: auto;
       animation: float 2.4s ease-in-out infinite;
       filter: drop-shadow(0 12px 24px rgba(200,169,110,0.18));
+      opacity: 0;
+      transition: opacity 0.5s ease;
     }
+    .loader-img.active { opacity: 1; }
     @keyframes float {
       0%   { transform: translateY(0px) rotate(0deg); }
       30%  { transform: translateY(-14px) rotate(-2deg); }
@@ -705,7 +712,10 @@
 
 <!-- ════ LOADING ════ -->
 <div id="loading">
-  <img class="loader-img" src="loading.png" alt="loading">
+  <div class="loader-img-wrap">
+    <img class="loader-img active" id="loader-img1" src="loading1.png" alt="loading">
+    <img class="loader-img" id="loader-img2" src="loading2.png" alt="loading">
+  </div>
   <p class="loader-text" id="loader-text">あなたの回答を分析中...</p>
   <div class="loader-dots">
     <div class="loader-dot"></div>
@@ -751,9 +761,14 @@
     'あなたにベストな組み合わせを選定中...',
   ];
   let _loaderTimer = null;
+  let _imgTimer = null;
 
   function startLoaderMessages() {
     const el = document.getElementById('loader-text');
+    const img1 = document.getElementById('loader-img1');
+    const img2 = document.getElementById('loader-img2');
+
+    // 文言ローテーション
     let idx = 0;
     el.textContent = LOADING_MESSAGES[0];
     _loaderTimer = setInterval(() => {
@@ -764,11 +779,23 @@
         el.classList.remove('fade');
       }, 400);
     }, 2800);
+
+    // 画像交互切り替え（3.5秒ごと）
+    let imgIdx = 0;
+    img1.classList.add('active');
+    img2.classList.remove('active');
+    _imgTimer = setInterval(() => {
+      imgIdx = imgIdx === 0 ? 1 : 0;
+      img1.classList.toggle('active', imgIdx === 0);
+      img2.classList.toggle('active', imgIdx === 1);
+    }, 3500);
   }
 
   function stopLoaderMessages() {
     clearInterval(_loaderTimer);
+    clearInterval(_imgTimer);
     _loaderTimer = null;
+    _imgTimer = null;
   }
   const ICONS = { テント:'⛺', 寝袋:'😴', チェア:'🪑', テーブル:'🪵', クッカー:'🍳', ランタン:'💡', 焚き火台:'🔥', タープ:'⛱️' };
 

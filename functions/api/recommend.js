@@ -29,8 +29,26 @@ const EXCLUDE_WORDS = [
   '自在', 'フック', 'リング', '補強',
 ];
 
+// カテゴリごとにタイトルに含まれるべきキーワード（いずれか1つ以上）
+const CATEGORY_KEYWORDS = {
+  'テント':   ['テント', 'シェルター', 'ティピー', 'ツェルト'],
+  'タープ':   ['タープ'],
+  '寝袋':     ['寝袋', 'シュラフ', 'スリーピングバッグ'],
+  'チェア':   ['チェア', 'チェアー', '椅子', 'いす', 'ロッキング'],
+  'テーブル': ['テーブル', '折りたたみ台', 'ロールテーブル'],
+  'クッカー': ['クッカー', 'バーナー', 'コンロ', 'ストーブ', 'クックウェア', '鍋', 'フライパン', 'メスティン'],
+  'ランタン': ['ランタン', 'ライト', '灯', 'ランプ'],
+  '焚き火台': ['焚き火台', '焚火台', 'ファイアグリル', 'グリル', 'ファイヤーピット'],
+};
+
 function isExcluded(name) {
   return EXCLUDE_WORDS.some(w => name.includes(w));
+}
+
+function matchesCategory(name, category) {
+  const keywords = CATEGORY_KEYWORDS[category];
+  if (!keywords) return true; // 未定義カテゴリはスルー
+  return keywords.some(kw => name.includes(kw));
 }
 
 export async function onRequestPost(context) {
@@ -62,6 +80,7 @@ export async function onRequestPost(context) {
 必要なカテゴリ: ${categoryList}
 
 各カテゴリについて30商品を調査して特定してください。
+【重要】各商品は必ず指定されたカテゴリの本体製品のみを提案してください。アクセサリー・パーツ・付属品・収納ケース・替えパーツ等は絶対に含めないでください。例えばテントカテゴリにはテント本体のみ、寝袋カテゴリには寝袋本体のみを提案してください。
 必ずJSON形式のみで返してください（前置きや説明文は一切不要）。形式：
 {
   "recommendations": [
@@ -149,14 +168,21 @@ export async function onRequestPost(context) {
     return d;
   }
 
-  // 除外ワードに引っかからない最初のアイテムを返す
-  function findGoodItem(d) {
+  // 除外ワードに引っかからず、カテゴリキーワードを含む最初のアイテムを返す
+  function findGoodItem(d, category) {
     const items = d.Items || [];
     for (const item of items) {
       const name = item.Item?.itemName || '';
-      if (!isExcluded(name)) return item.Item;
+      if (!isExcluded(name) && matchesCategory(name, category)) return item.Item;
     }
     return null;
+  }
+
+  // 楽天検索キーワードにカテゴリキーワードを付加する
+  function buildSearchKeyword(searchKeyword, category) {
+    const catKw = CATEGORY_KEYWORDS[category]?.[0] || category;
+    if (searchKeyword.includes(catKw)) return searchKeyword;
+    return `${searchKeyword} ${catKw}`;
   }
 
   const results = [];
@@ -165,14 +191,15 @@ export async function onRequestPost(context) {
     for (const p of (rec.products || []).slice(0, 30)) {
       let rakutenItem = null;
       try {
-        const d = await fetchRakuten(p.searchKeyword);
-        rakutenItem = findGoodItem(d);
+        const keyword = buildSearchKeyword(p.searchKeyword, rec.category);
+        const d = await fetchRakuten(keyword);
+        rakutenItem = findGoodItem(d, rec.category);
 
         // フォールバック: ブランド名 + カテゴリで再検索
         if (!rakutenItem && p.brand) {
           await sleep(300);
           const d2 = await fetchRakuten(p.brand + ' ' + rec.category);
-          rakutenItem = findGoodItem(d2);
+          rakutenItem = findGoodItem(d2, rec.category);
         }
       } catch (_) {
         // 楽天失敗時はAmazonのみで表示
