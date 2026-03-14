@@ -369,16 +369,19 @@
     #loading {
       display: none;
       min-height: 100svh;
-      flex-direction: column; align-items: center; justify-content: center; gap: 40px;
+      flex-direction: column; align-items: center; justify-content: center; gap: 32px;
     }
-    .loader-ring {
-      width: 48px; height: 48px;
-      border: 1px solid var(--border);
-      border-top-color: var(--gold);
-      border-radius: 50%;
-      animation: spin 2s linear infinite;
+    .loader-img {
+      width: 160px; height: auto;
+      animation: float 2.4s ease-in-out infinite;
+      filter: drop-shadow(0 12px 24px rgba(200,169,110,0.18));
     }
-    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes float {
+      0%   { transform: translateY(0px) rotate(0deg); }
+      30%  { transform: translateY(-14px) rotate(-2deg); }
+      60%  { transform: translateY(-8px) rotate(1.5deg); }
+      100% { transform: translateY(0px) rotate(0deg); }
+    }
     .loader-text {
       font-family: 'Cormorant Garamond', serif;
       font-size: 1rem; font-style: italic; font-weight: 300;
@@ -700,7 +703,7 @@
 
 <!-- ════ LOADING ════ -->
 <div id="loading">
-  <div class="loader-ring"></div>
+  <img class="loader-img" src="loading.png" alt="loading">
   <p class="loader-text">最適なギアを探しています</p>
   <div class="loader-dots">
     <div class="loader-dot"></div>
