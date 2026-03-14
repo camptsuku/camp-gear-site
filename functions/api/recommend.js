@@ -185,22 +185,34 @@ export async function onRequestPost(context) {
     return `${searchKeyword} ${catKw}`;
   }
 
-  const results = [];
+  // ── Gemini はカテゴリを重複して返すことがある → カテゴリ単位でグループ化 ──
+  const categoryGroups = new Map();
   for (const rec of recommendations) {
+    const cat = rec.category;
+    if (!categoryGroups.has(cat)) {
+      categoryGroups.set(cat, { reason: rec.reason, geminiProducts: [] });
+    }
+    for (const p of (rec.products || [])) {
+      categoryGroups.get(cat).geminiProducts.push(p);
+    }
+  }
+
+  // ── カテゴリごとに楽天検索して商品を最大30件収集 ──
+  const results = [];
+  for (const [category, group] of categoryGroups) {
     const products = [];
-    const seenTitles = new Set(); // 重複除外用
-    // Gemini から 10 件のキーワードを受け取り、各検索結果から複数件取得して合計30件を目標にする
-    for (const p of (rec.products || []).slice(0, 10)) {
+    const seenTitles = new Set();
+
+    for (const p of group.geminiProducts.slice(0, 10)) {
       if (products.length >= 30) break;
       let rakutenItems = [];
       try {
-        const keyword = buildSearchKeyword(p.searchKeyword, rec.category);
+        const keyword = buildSearchKeyword(p.searchKeyword, category);
         const d = await fetchRakuten(keyword);
-        rakutenItems = findGoodItems(d, rec.category, 4);
+        rakutenItems = findGoodItems(d, category, 4);
       } catch (_) {
         // 楽天失敗時はスキップ
       }
-      // 連続リクエストのレートリミット回避（300ms待機）
       await sleep(300);
 
       const amazonUrl = `https://www.amazon.co.jp/s?k=${encodeURIComponent(p.searchKeyword)}&tag=${AMAZON_TAG}`;
@@ -208,16 +220,12 @@ export async function onRequestPost(context) {
       if (rakutenItems.length > 0) {
         for (const rakutenItem of rakutenItems) {
           if (products.length >= 30) break;
-          // 楽天の画像URL: ?_ex=128x128 を除去して元サイズを使う
           const rawImg = rakutenItem.mediumImageUrls?.[0]?.imageUrl || null;
           const imageUrl = rawImg ? rawImg.replace(/\?.*$/, '') : null;
           const cleanTitle = rakutenItem.itemName.replace(/【[^】]*】|★[^★]*★|\[[^\]]*\]/g, '').trim().slice(0, 60);
-
-          // タイトル先頭15文字で重複チェック
           const titleKey = cleanTitle.slice(0, 15);
           if (seenTitles.has(titleKey)) continue;
           seenTitles.add(titleKey);
-
           products.push({
             title:         cleanTitle,
             brand:         p.brand || null,
@@ -230,12 +238,11 @@ export async function onRequestPost(context) {
           });
         }
       } else {
-        // 楽天で取得できなかった場合は Amazon リンクのみで1件追加
+        // 楽天ヒットなし → Amazon リンクのみで1件
         if (products.length >= 30) continue;
         const titleKey = p.productName.slice(0, 15);
         if (seenTitles.has(titleKey)) continue;
         seenTitles.add(titleKey);
-
         products.push({
           title:         p.productName,
           brand:         p.brand || null,
@@ -248,7 +255,7 @@ export async function onRequestPost(context) {
         });
       }
     }
-    results.push({ category: rec.category, reason: rec.reason, products });
+    results.push({ category, reason: group.reason, products });
   }
 
   return json({ results });
