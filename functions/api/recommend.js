@@ -31,6 +31,8 @@ const EXCLUDE_WORDS = [
   'バックパック', 'リュック', 'ザック', 'パック',
   // 家電・屋内調理器具
   'レンジ', '電子レンジ', 'IH', '電気', '炊飯器', 'ホットプレート', 'たこ焼き', '電動',
+  'スチーマー', '低温調理', '炊飯', 'トースター', 'オーブン', 'ミキサー', 'ブレンダー',
+  'ジューサー', 'ヨーグルト', 'ホームベーカリー',
 ];
 
 // カテゴリごとにタイトルに含まれるべきキーワード（いずれか1つ以上）
@@ -180,11 +182,15 @@ export async function onRequestPost(context) {
     return found;
   }
 
-  // 楽天検索キーワードにカテゴリキーワードを付加する
+  // 楽天検索キーワードにカテゴリキーワード＋アウトドア修飾を付加する
   function buildSearchKeyword(searchKeyword, category) {
     const catKw = CATEGORY_KEYWORDS[category]?.[0] || category;
-    if (searchKeyword.includes(catKw)) return searchKeyword;
-    return `${searchKeyword} ${catKw}`;
+    let kw = searchKeyword;
+    // カテゴリキーワードが含まれていなければ追加
+    if (!kw.includes(catKw)) kw = `${kw} ${catKw}`;
+    // 「キャンプ」「アウトドア」のどちらも含まれていなければ「アウトドア」を先頭に追加
+    if (!kw.includes('キャンプ') && !kw.includes('アウトドア')) kw = `アウトドア ${kw}`;
+    return kw;
   }
 
   // ── Gemini はカテゴリを重複して返すことがある → カテゴリ単位でグループ化 ──
@@ -275,8 +281,8 @@ export async function onRequestPost(context) {
     if (products.length < 10) {
       const catKw = CATEGORY_KEYWORDS[category]?.[0] || category;
       const fallbacks = [
-        `${catKw} おすすめ`,
-        `${catKw} 人気`,
+        `アウトドア ${catKw} おすすめ`,
+        `キャンプ ${catKw} 人気`,
       ];
       for (const kw of fallbacks) {
         if (products.length >= 10) break;
