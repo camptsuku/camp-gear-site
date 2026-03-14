@@ -846,14 +846,14 @@
 
   // カテゴリ別ブランド選択肢
   const BRAND_OPTS = {
-    'テント': ['スノーピーク','DOD','コールマン','ノルディスク','ogawa','ヒルバーグ','テンマクデザイン'],
-    'タープ': ['スノーピーク','DOD','コールマン','ノルディスク','ogawa','ヒルバーグ','テンマクデザイン'],
-    '寝袋':   ['モンベル','ナンガ（NANGA）','イスカ','コールマン','スノーピーク'],
-    'チェア': ['スノーピーク','ヘリノックス','コールマン','DOD','キャプテンスタッグ','ロゴス'],
-    'テーブル':['スノーピーク','ヘリノックス','コールマン','DOD','キャプテンスタッグ','ロゴス'],
-    'クッカー':['スノーピーク','ユニフレーム','モンベル','プリムス','トランギア','キャプテンスタッグ'],
-    'ランタン':['コールマン','スノーピーク','ゴールゼロ','ジェントス','キャプテンスタッグ'],
-    '焚き火台':['スノーピーク','ユニフレーム','コールマン','DOD','キャプテンスタッグ'],
+    'テント': ['snow peak','DOD','Coleman','Nordisk','ogawa','HILLEBERG','tent-Mark DESIGNS'],
+    'タープ': ['snow peak','DOD','Coleman','Nordisk','ogawa','HILLEBERG','tent-Mark DESIGNS'],
+    '寝袋':   ['mont-bell','NANGA','ISUKA','Coleman','snow peak'],
+    'チェア': ['snow peak','Helinox','Coleman','DOD','CAPTAIN STAG','LOGOS'],
+    'テーブル':['snow peak','Helinox','Coleman','DOD','CAPTAIN STAG','LOGOS'],
+    'クッカー':['snow peak','UNIFLAME','mont-bell','PRIMUS','trangia','CAPTAIN STAG'],
+    'ランタン':['Coleman','snow peak','GOAL ZERO','GENTOS','CAPTAIN STAG'],
+    '焚き火台':['snow peak','UNIFLAME','Coleman','DOD','CAPTAIN STAG'],
   };
   function brandQ(cat) {
     const opts = [...(BRAND_OPTS[cat] || []), 'こだわらない'].map(b => ({ v: b, l: b }));
