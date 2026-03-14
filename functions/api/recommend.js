@@ -75,7 +75,7 @@ export async function onRequestPost(context) {
   // ── Step 1: Gemini で人気商品名を特定 ──────────────────────────────
   // 旧プロンプト（詳細版）は git 履歴 a646992 を参照
   const conditionText = [campStyle, budget ? `予算${budget}` : ''].filter(Boolean).join('、') || 'こだわらない';
-  const prompt = `キャンプギア専門家として、以下の条件に合う日本で人気・高評価の${categoryList}本体製品を10件特定してください。
+  const prompt = `キャンプギア専門家として、以下の条件に合う日本で人気・高評価の${categoryList}本体製品を5件特定してください。
 ユーザー条件: ${conditionText}
 本体製品のみ（アクセサリー・パーツ・収納ケース除く）。JSONのみ:
 {"recommendations":[{"category":"テント","reason":"選定理由100字以内","products":[{"productName":"スノーピーク アメニティドームM","brand":"スノーピーク","searchKeyword":"スノーピーク アメニティドームM テント"}]}]}`;
@@ -145,7 +145,7 @@ export async function onRequestPost(context) {
       accessKey:     RAKUTEN_ACCESS_KEY,
       affiliateId:   RAKUTEN_AFFILIATE_ID,
       keyword,
-      hits:     '30',
+      hits:     '10',
       sort:     '-reviewCount',
       imageFlag:'1',
       minPrice: bp.minPrice,
@@ -239,33 +239,30 @@ export async function onRequestPost(context) {
     const seenSignatures = new Set();
 
     // メイン検索: Geminiの商品キーワードで順番に検索
-    for (const p of group.geminiProducts.slice(0, 10)) {
-      if (products.length >= 30) break;
+    for (const p of group.geminiProducts.slice(0, 5)) {
+      if (products.length >= 10) break;
       try {
         const keyword = buildSearchKeyword(p.searchKeyword, category);
         const d = await fetchRakuten(keyword);
-        const items = findGoodItems(d, category, 6);
+        const items = findGoodItems(d, category, 3);
         const amazonUrl = `https://www.amazon.co.jp/s?k=${encodeURIComponent(p.searchKeyword)}&tag=${AMAZON_TAG}`;
         for (const item of items) addRakutenItem(item, p.brand, amazonUrl, products, seenTitles, seenSignatures);
       } catch (_) {}
       await sleep(300);
     }
 
-    // フォールバック検索: 30件未満の場合はカテゴリキーワードを変えて追加検索
-    if (products.length < 30) {
+    // フォールバック検索: 10件未満の場合はカテゴリキーワードを変えて追加検索
+    if (products.length < 10) {
       const catKw = CATEGORY_KEYWORDS[category]?.[0] || category;
       const fallbacks = [
         `${catKw} おすすめ`,
         `${catKw} 人気`,
-        `${catKw} 軽量 コンパクト`,
-        `${catKw} 初心者`,
-        `${catKw} コスパ`,
       ];
       for (const kw of fallbacks) {
-        if (products.length >= 30) break;
+        if (products.length >= 10) break;
         try {
           const d = await fetchRakuten(kw);
-          const need = 30 - products.length;
+          const need = 10 - products.length;
           const items = findGoodItems(d, category, need);
           const amazonUrl = `https://www.amazon.co.jp/s?k=${encodeURIComponent(kw)}&tag=${AMAZON_TAG}`;
           for (const item of items) addRakutenItem(item, null, amazonUrl, products, seenTitles, seenSignatures);
