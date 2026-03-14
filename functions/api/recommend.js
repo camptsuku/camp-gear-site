@@ -332,8 +332,8 @@ export async function onRequestPost(context) {
       }
     }
 
-    // ── Stage 3: まだ20件未満 → ブランドなしで補完 ──
-    if (products.length < 20) {
+    // ── Stage 3: まだ20件未満 → ブランドなしで補完（ブランド指定なし時のみ）──
+    if (!brand && products.length < 20) {
       const catKw = CATEGORY_KEYWORDS[category]?.[0] || category;
       const fillFetches = [
         `アウトドア ${catKw} おすすめ`,
