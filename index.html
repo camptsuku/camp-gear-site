@@ -386,7 +386,9 @@
       font-family: 'Cormorant Garamond', serif;
       font-size: 1rem; font-style: italic; font-weight: 300;
       color: var(--sub2); letter-spacing: 0.15em;
+      transition: opacity 0.4s ease;
     }
+    .loader-text.fade { opacity: 0; }
     .loader-dots { display: flex; gap: 8px; }
     .loader-dot {
       width: 4px; height: 4px; border-radius: 50%;
@@ -704,7 +706,7 @@
 <!-- ════ LOADING ════ -->
 <div id="loading">
   <img class="loader-img" src="loading.png" alt="loading">
-  <p class="loader-text">最適なギアを探しています</p>
+  <p class="loader-text" id="loader-text">あなたの回答を分析中...</p>
   <div class="loader-dots">
     <div class="loader-dot"></div>
     <div class="loader-dot"></div>
@@ -737,6 +739,37 @@
   const sel = {};
   let step = 2;
   const TOTAL = 5;
+
+  // ローディング文言ローテーション
+  const LOADING_MESSAGES = [
+    'あなたの回答を分析中...',
+    '数千件のギアデータを照合しています...',
+    'ブログ・口コミ・レビューを精査中...',
+    '最適なスペックを絞り込んでいます...',
+    '価格帯とコスパを検証中...',
+    'プロキャンパーの評価を参照中...',
+    'あなたにベストな組み合わせを選定中...',
+  ];
+  let _loaderTimer = null;
+
+  function startLoaderMessages() {
+    const el = document.getElementById('loader-text');
+    let idx = 0;
+    el.textContent = LOADING_MESSAGES[0];
+    _loaderTimer = setInterval(() => {
+      el.classList.add('fade');
+      setTimeout(() => {
+        idx = (idx + 1) % LOADING_MESSAGES.length;
+        el.textContent = LOADING_MESSAGES[idx];
+        el.classList.remove('fade');
+      }, 400);
+    }, 2800);
+  }
+
+  function stopLoaderMessages() {
+    clearInterval(_loaderTimer);
+    _loaderTimer = null;
+  }
   const ICONS = { テント:'⛺', 寝袋:'😴', チェア:'🪑', テーブル:'🪵', クッカー:'🍳', ランタン:'💡', 焚き火台:'🔥', タープ:'⛱️' };
 
   // カテゴリ別質問定義
@@ -878,6 +911,7 @@
   async function doSearch() {
     document.getElementById('steps').style.display = 'none';
     document.getElementById('loading').style.display = 'flex';
+    startLoaderMessages();
     window.scrollTo({ top: 0, behavior: 'smooth' });
 
     const cats = [sel.category];
@@ -890,8 +924,10 @@
         body: JSON.stringify(apiBody)
       });
       const json = await res.json();
+      stopLoaderMessages();
       render(json.results || []);
     } catch(e) {
+      stopLoaderMessages();
       alert('エラーが発生しました。再度お試しください。');
       restart();
     }
