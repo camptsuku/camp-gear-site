@@ -51,6 +51,28 @@ const CATEGORY_KEYWORDS = {
   '焚き火台': ['焚き火台', '焚火台', 'ファイアグリル', 'グリル', 'ファイヤーピット'],
 };
 
+// ブランド表記ゆれ対応（英語名 → 楽天で使われる表記バリエーション）
+const BRAND_ALIASES = {
+  'snow peak':         ['スノーピーク', 'snow peak', 'snowpeak'],
+  'Coleman':           ['コールマン', 'Coleman'],
+  'DOD':               ['DOD', 'ディーオーディー'],
+  'Nordisk':           ['ノルディスク', 'Nordisk'],
+  'ogawa':             ['ogawa', 'オガワ', '小川テント'],
+  'HILLEBERG':         ['ヒルバーグ', 'HILLEBERG'],
+  'tent-Mark DESIGNS': ['テンマクデザイン', 'tent-Mark', 'テンマク'],
+  'mont-bell':         ['モンベル', 'mont-bell', 'montbell'],
+  'NANGA':             ['ナンガ', 'NANGA'],
+  'ISUKA':             ['イスカ', 'ISUKA'],
+  'Helinox':           ['ヘリノックス', 'Helinox'],
+  'CAPTAIN STAG':      ['キャプテンスタッグ', 'CAPTAIN STAG'],
+  'LOGOS':             ['ロゴス', 'LOGOS'],
+  'UNIFLAME':          ['ユニフレーム', 'UNIFLAME'],
+  'PRIMUS':            ['プリムス', 'PRIMUS'],
+  'trangia':           ['トランギア', 'trangia'],
+  'GOAL ZERO':         ['ゴールゼロ', 'GOAL ZERO', 'goalzero'],
+  'GENTOS':            ['ジェントス', 'GENTOS'],
+};
+
 function isExcluded(name) {
   return EXCLUDE_WORDS.some(w => name.includes(w));
 }
@@ -276,7 +298,7 @@ export async function onRequestPost(context) {
     const seenBrandPrices = new Set();
     const brandCount = new Map();
 
-    // メイン検索: Geminiの全キーワードを並列リクエスト → 結果を逐次処理
+    // ── Stage 1: Gemini キーワード + ブランド付き並列検索 ──
     const mainFetches = group.geminiProducts.slice(0, 10).map(p => {
       const keyword = buildSearchKeyword(p.searchKeyword, category, brand);
       const amazonUrl = `https://www.amazon.co.jp/s?k=${encodeURIComponent(p.searchKeyword)}&tag=${AMAZON_TAG}`;
@@ -291,22 +313,39 @@ export async function onRequestPost(context) {
       for (const item of items) addRakutenItem(item, r.p.brand, r.amazonUrl, products, seenBrandTitles, seenBrandPrices, brandCount);
     }
 
-    // フォールバック検索: 20件未満の場合は2キーワードを並列リクエスト
-    if (products.length < 20) {
+    // ── Stage 2: ブランド指定あり && 10件未満 → エイリアス×カテゴリ直接検索 ──
+    if (brand && products.length < 10) {
       const catKw = CATEGORY_KEYWORDS[category]?.[0] || category;
-      const brandPrefix = brand ? `${brand} ` : '';
-      const fallbacks = [
-        `${brandPrefix}アウトドア ${catKw} おすすめ`,
-        `${brandPrefix}キャンプ ${catKw} 人気`,
-      ];
-      const fallbackFetches = fallbacks.map(kw => {
+      const aliases = BRAND_ALIASES[brand] || [brand];
+      const aliasFetches = aliases.map(alias => {
+        const kw = `${alias} ${catKw}`;
         const amazonUrl = `https://www.amazon.co.jp/s?k=${encodeURIComponent(kw)}&tag=${AMAZON_TAG}`;
         return fetchRakuten(kw)
           .then(d => ({ d, amazonUrl }))
           .catch(() => null);
       });
-      const fallbackResults = await Promise.all(fallbackFetches);
-      for (const r of fallbackResults) {
+      const aliasResults = await Promise.all(aliasFetches);
+      for (const r of aliasResults) {
+        if (!r || products.length >= 20) continue;
+        const items = findGoodItems(r.d, category, 6);
+        for (const item of items) addRakutenItem(item, brand, r.amazonUrl, products, seenBrandTitles, seenBrandPrices, brandCount);
+      }
+    }
+
+    // ── Stage 3: まだ20件未満 → ブランドなしで補完 ──
+    if (products.length < 20) {
+      const catKw = CATEGORY_KEYWORDS[category]?.[0] || category;
+      const fillFetches = [
+        `アウトドア ${catKw} おすすめ`,
+        `キャンプ ${catKw} 人気`,
+      ].map(kw => {
+        const amazonUrl = `https://www.amazon.co.jp/s?k=${encodeURIComponent(kw)}&tag=${AMAZON_TAG}`;
+        return fetchRakuten(kw)
+          .then(d => ({ d, amazonUrl }))
+          .catch(() => null);
+      });
+      const fillResults = await Promise.all(fillFetches);
+      for (const r of fillResults) {
         if (!r || products.length >= 20) continue;
         const need = 20 - products.length;
         const items = findGoodItems(r.d, category, need);
