@@ -336,10 +336,10 @@
       flex: 1; min-width: 170px;
       background: var(--card);
       border: none; cursor: pointer;
-      padding: 24px 28px;
-      color: var(--sub2);
-      font-family: 'Noto Sans JP', sans-serif;
-      font-size: 1.3rem; font-weight: 300; letter-spacing: 0.06em;
+      padding: 30px 24px;
+      color: var(--text);
+      font-family: 'Zen Old Mincho', serif;
+      font-size: 1.15rem; font-weight: 400; letter-spacing: 0.1em;
       text-align: center;
       transition: background 0.25s, color 0.25s;
     }
@@ -348,13 +348,19 @@
       border: 1px solid var(--gold);
       opacity: 0; transition: opacity 0.25s;
     }
-    .opt:hover { background: var(--gold-dim); color: var(--text); }
+    .opt::before {
+      content: ''; position: absolute; bottom: 0; left: 50%; transform: translateX(-50%);
+      width: 0; height: 1px; background: var(--gold);
+      transition: width 0.3s cubic-bezier(0.16,1,0.3,1);
+    }
+    .opt:hover { background: var(--gold-dim); color: var(--gold); }
     .opt:hover::after { opacity: 1; }
+    .opt:hover::before { width: 40%; }
     .opt small {
-      display: block; margin-top: 5px;
+      display: block; margin-top: 7px;
       font-family: 'Noto Sans JP', sans-serif;
-      font-size: 0.62rem; letter-spacing: 0.12em;
-      color: var(--sub); font-weight: 300;
+      font-size: 0.6rem; letter-spacing: 0.14em;
+      color: var(--sub2); font-weight: 300;
     }
 
     /* ════════════════════════════
@@ -436,12 +442,43 @@
     .res-sec-en { font-size: 0.6rem; color: var(--sub); letter-spacing: 0.35em; text-transform: uppercase; }
 
     .res-reason {
-      font-size: 0.75rem; color: var(--sub2); line-height: 2.3;
-      letter-spacing: 0.08em; margin-bottom: 36px;
-      padding: 14px 20px;
-      border-left: 1px solid var(--gold-mid);
+      font-size: 0.9rem; color: var(--text); line-height: 2.2;
+      letter-spacing: 0.06em; margin-bottom: 40px;
+      padding: 22px 28px;
+      border-left: 2px solid var(--gold);
       background: var(--gold-dim);
+      font-family: 'Zen Old Mincho', serif;
     }
+    .res-reason-label {
+      display: block;
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 0.58rem; letter-spacing: 0.5em; color: var(--gold);
+      text-transform: uppercase; margin-bottom: 10px; font-style: italic;
+    }
+
+    /* 結果アクションボタン */
+    .res-actions {
+      display: flex; gap: 16px; justify-content: center; flex-wrap: wrap;
+      padding: 64px 0 0; margin-top: 40px;
+      border-top: 1px solid var(--border);
+    }
+    .res-btn-top {
+      background: none; border: 1px solid var(--border);
+      color: var(--sub2); padding: 14px 40px; cursor: pointer;
+      font-size: 0.62rem; letter-spacing: 0.3em; text-transform: uppercase;
+      font-family: 'Noto Sans JP', sans-serif;
+      transition: border-color 0.2s, color 0.2s;
+    }
+    .res-btn-top:hover { border-color: var(--gold-mid); color: var(--gold); }
+    .res-btn-retry {
+      background: var(--gold); color: #0A0A0A;
+      border: none; cursor: pointer;
+      padding: 14px 40px;
+      font-size: 0.62rem; letter-spacing: 0.3em; text-transform: uppercase;
+      font-family: 'Noto Sans JP', sans-serif;
+      transition: opacity 0.2s;
+    }
+    .res-btn-retry:hover { opacity: 0.82; }
 
     /* 商品グリッド */
     .prod-grid {
@@ -866,13 +903,28 @@
       : [sel.category, sel.q1, sel.q2, sel.q3, sel.q4].filter(Boolean);
     document.getElementById('res-meta').textContent = labels.join(' · ');
 
+    // Fix1: 空結果・エラー時の表示
+    if (!results || results.length === 0) {
+      document.getElementById('res-inner').innerHTML = `
+        <div style="text-align:center;padding:80px 20px;">
+          <p style="font-family:'Cormorant Garamond',serif;font-size:1.2rem;color:var(--sub2);letter-spacing:0.15em;font-style:italic;margin-bottom:20px;">No results found</p>
+          <p style="font-size:0.72rem;color:var(--sub);letter-spacing:0.1em;line-height:2;">条件に合う商品が見つかりませんでした。<br>条件を変えてもう一度お試しください。</p>
+          <div class="res-actions" style="border-top:none;padding-top:40px;">
+            <button class="res-btn-top" onclick="restart()">← TOPに戻る</button>
+            <button class="res-btn-retry" onclick="restartDiag()">もう一度診断する</button>
+          </div>
+        </div>`;
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
     document.getElementById('res-inner').innerHTML = results.map(r => `
       <div class="res-section">
         <div class="res-sec-header">
           <h3 class="res-sec-title">${ICONS[r.category] || '🎒'} ${r.category}</h3>
           <span class="res-sec-en">Recommended Items</span>
         </div>
-        ${r.reason ? `<p class="res-reason">${r.reason}</p>` : ''}
+        ${r.reason ? `<div class="res-reason"><span class="res-reason-label">Selection Note</span>${r.reason}</div>` : ''}
         <div class="prod-grid">
           ${(r.products && r.products.length) ? r.products.map(p => `
             <div class="prod-card">
@@ -890,7 +942,11 @@
             </div>`).join('')
           : `<p class="no-prod">商品が見つかりませんでした</p>`}
         </div>
-      </div>`).join('');
+      </div>`).join('') + `
+    <div class="res-actions">
+      <button class="res-btn-top" onclick="restart()">← TOPに戻る</button>
+      <button class="res-btn-retry" onclick="restartDiag()">もう一度診断する</button>
+    </div>`;
 
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
@@ -902,6 +958,19 @@
     document.getElementById('loading').style.display = 'none';
     document.getElementById('steps').style.display = 'none';
     document.getElementById('hero').style.display = 'grid';
+    document.getElementById('cat-section').style.display = 'block';
+    document.getElementById('back-btn').classList.remove('visible');
+    setProgress(1);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function restartDiag() {
+    Object.keys(sel).forEach(k => delete sel[k]);
+    step = 2;
+    document.getElementById('results').style.display = 'none';
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('steps').style.display = 'none';
+    document.getElementById('hero').style.display = 'none';
     document.getElementById('cat-section').style.display = 'block';
     document.getElementById('back-btn').classList.remove('visible');
     setProgress(1);
