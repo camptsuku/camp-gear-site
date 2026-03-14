@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Camp Gear Finder — あなたのキャンプに、本当に必要なギアを</title>
+  <title>キャンプギア探したい — あなたのキャンプに、本当に必要なギアを</title>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Zen+Old+Mincho:wght@400;700&family=Noto+Sans+JP:wght@300;400&display=swap" rel="stylesheet">
   <style>
     :root {
@@ -484,17 +484,16 @@
     .prod-grid {
       display: grid;
       grid-template-columns: repeat(5, 1fr);
+      gap: 1px;
+      background: var(--border);
       border: 1px solid var(--border);
     }
     .prod-card {
       position: relative;
       background: var(--card);
-      border-right: 1px solid var(--border);
-      border-bottom: 1px solid var(--border);
       overflow: hidden;
       transition: background 0.25s;
     }
-    .prod-card:last-child { border-right: none; }
     .prod-card::after {
       content: ''; position: absolute; inset: 0;
       border: 1px solid var(--gold);
@@ -516,6 +515,11 @@
     }
 
     .prod-body { padding: 16px; }
+    .prod-brand {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 0.6rem; letter-spacing: 0.25em; color: var(--gold);
+      text-transform: uppercase; margin-bottom: 4px;
+    }
     .prod-name {
       font-size: 0.74rem; line-height: 1.7; color: var(--text);
       letter-spacing: 0.04em; margin-bottom: 10px;
@@ -524,11 +528,25 @@
     }
     .prod-price {
       font-family: 'Cormorant Garamond', serif;
-      font-size: 1.25rem; font-weight: 400; color: var(--gold);
-      letter-spacing: 0.04em; margin-bottom: 14px;
+      font-size: 1.1rem; font-weight: 400; color: var(--gold);
+      letter-spacing: 0.02em; margin-bottom: 14px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
     .prod-btns { display: flex; flex-direction: column; gap: 7px; }
 
+    /* Amazon — 白背景・黒文字（プライマリ） */
+    .btn-a {
+      display: block; text-align: center; text-decoration: none;
+      background: #FFFFFF; color: #0A0A0A;
+      padding: 9px 8px; font-size: 0.65rem; font-weight: 400;
+      letter-spacing: 0.2em; text-transform: uppercase;
+      white-space: nowrap;
+      transition: opacity 0.2s;
+      font-family: 'Noto Sans JP', sans-serif;
+    }
+    .btn-a:hover { opacity: 0.85; }
+
+    /* 楽天 — ゴールド（セカンダリ） */
     .btn-r {
       display: block; text-align: center; text-decoration: none;
       background: var(--gold); color: #0A0A0A;
@@ -538,16 +556,6 @@
       transition: opacity 0.2s;
     }
     .btn-r:hover { opacity: 0.8; }
-    .btn-a {
-      display: block; text-align: center; text-decoration: none;
-      background: transparent; color: var(--sub2);
-      border: 1px solid var(--border);
-      padding: 9px 8px; font-size: 0.65rem;
-      letter-spacing: 0.2em; text-transform: uppercase;
-      white-space: nowrap;
-      transition: border-color 0.2s, color 0.2s;
-    }
-    .btn-a:hover { border-color: var(--gold-mid); color: var(--text); }
 
     .no-prod { font-size: 0.75rem; color: var(--sub); letter-spacing: 0.1em; padding: 28px; }
 
@@ -582,7 +590,6 @@
       .opt { min-width: 140px; padding: 20px 20px; }
       #results { padding: 80px 24px 100px; }
       .prod-grid { grid-template-columns: 1fr; }
-      .prod-card { border-right: none; }
       .res-header { flex-direction: column; align-items: flex-start; }
     }
   </style>
@@ -591,7 +598,7 @@
 
 <div id="prog"><div id="pbar"></div></div>
 <nav id="nav">
-  <span class="nav-wordmark">Camp Gear Finder</span>
+  <span class="nav-wordmark">キャンプギア探したい</span>
   <button id="back-btn" onclick="goBack()">戻る</button>
 </nav>
 
@@ -605,7 +612,7 @@
   <div class="hero-inner">
     <div class="hero-issue">
       <span class="hero-issue-line"></span>
-      <span class="hero-issue-text">Camp Gear Finder — Japan</span>
+      <span class="hero-issue-text">キャンプギア探したい — Japan</span>
       <span class="hero-issue-line"></span>
     </div>
 
@@ -680,10 +687,10 @@
       <span class="cat-name">焚き火台</span>
       <span class="cat-en">Fire Pit</span>
     </div>
-    <div class="cat-card" onclick="pick('category','すべて');goStep2()">
-      <span class="cat-icon">🏕️</span>
-      <span class="cat-name">まとめて探したい</span>
-      <span class="cat-en">All Gear</span>
+    <div class="cat-card" onclick="pick('category','タープ');goStep2()">
+      <span class="cat-icon">⛱️</span>
+      <span class="cat-name">タープ</span>
+      <span class="cat-en">Tarp</span>
     </div>
   </div>
 </div>
@@ -715,7 +722,7 @@
 </div>
 
 <footer>
-  <span class="footer-mark">Camp Gear Finder</span>
+  <span class="footer-mark">キャンプギア探したい</span>
   <p>
     楽天APIで最新ギアをリアルタイム表示するキャンプギア診断サイト<br>
     本サイトはAmazonアソシエイト・楽天アフィリエイトプログラムに参加しています<br>
@@ -727,24 +734,24 @@
   const sel = {};
   let step = 2;
   const TOTAL = 5;
-  const ICONS = { テント:'⛺', 寝袋:'😴', チェア:'🪑', テーブル:'🪵', クッカー:'🍳', ランタン:'💡', 焚き火台:'🔥' };
+  const ICONS = { テント:'⛺', 寝袋:'😴', チェア:'🪑', テーブル:'🪵', クッカー:'🍳', ランタン:'💡', 焚き火台:'🔥', タープ:'⛱️' };
 
   // カテゴリ別質問定義
   const CQ = {
-    'すべて': [
-      { eyebrow:'Scene',    q:'どんな<em>シーン</em>で行きますか？',   key:'scene',  opts:[{v:'ソロ',l:'ソロ',s:'一人の時間を楽しむ'},{v:'カップル',l:'カップル',s:'二人でゆったり'},{v:'ファミリー',l:'ファミリー',s:'家族みんなで'},{v:'グループ',l:'グループ',s:'仲間と盛り上がる'}] },
-      { eyebrow:'Style',    q:'あなたの<em>スタイル</em>は？',         key:'style',  opts:[{v:'ミニマリスト',l:'ミニマリスト',s:'軽く・少なく・スマートに'},{v:'ラグジュアリー',l:'ラグジュアリー',s:'快適・上質・こだわり'},{v:'ブッシュクラフト',l:'ブッシュクラフト',s:'自然と共に'},{v:'映えキャンプ',l:'映えキャンプ',s:'おしゃれ・インスタ映え'}] },
-      { eyebrow:'Season',   q:'主にどんな<em>季節・天気</em>で？',     key:'season', opts:[{v:'春秋',l:'春・秋',s:'過ごしやすい季節'},{v:'真夏',l:'真夏',s:'暑さ対策が必要'},{v:'雪中冬',l:'雪中・冬',s:'寒さに打ち勝つ'},{v:'雨キャン',l:'雨キャン',s:'雨でも楽しむ'}] },
-      { eyebrow:'Goal',     q:'今一番の<em>悩み・目的</em>は？',       key:'goal',   opts:[{v:'軽量化',l:'荷物を軽くしたい'},{v:'節約',l:'予算を抑えたい'},{v:'映え',l:'映えるサイトにしたい'},{v:'快適',l:'とにかく快適に'},{v:'料理',l:'キャンプ飯を極めたい'},{v:'こだわらない',l:'こだわらない'}] },
+    'タープ': [
+      { eyebrow:'People',   q:'何人で<em>使いますか</em>？',           key:'q1', opts:[{v:'ソロ（1人）',l:'ソロ',s:'1人'},{v:'2〜3人',l:'2〜3人'},{v:'ファミリー（4〜5人）',l:'ファミリー',s:'4〜5人'},{v:'グループ（6人以上）',l:'グループ',s:'6人以上'}] },
+      { eyebrow:'Shape',    q:'形状の<em>好み</em>は？',               key:'q2', opts:[{v:'ヘキサタープ',l:'ヘキサ',s:'六角形・定番'},{v:'レクタタープ',l:'レクタ',s:'長方形・広い'},{v:'ウイングタープ',l:'ウイング',s:'軽量・スタイリッシュ'},{v:'まだわからない',l:'まだわからない'}] },
+      { eyebrow:'Priority', q:'<em>重視</em>することは？',             key:'q3', opts:[{v:'設営の簡単さ',l:'設営の簡単さ'},{v:'軽さ・コンパクト',l:'軽さ・コンパクト'},{v:'広さ・日陰の多さ',l:'広さ・日陰'},{v:'デザイン・見た目',l:'デザイン・見た目'}] },
+      { eyebrow:'Season',   q:'主に使う<em>季節</em>は？',             key:'q4', opts:[{v:'春・秋',l:'春・秋'},{v:'夏（遮光重視）',l:'夏',s:'遮光重視'},{v:'雨の日も使いたい',l:'雨の日も'},{v:'オールシーズン',l:'オールシーズン'}] },
     ],
     'テント': [
       { eyebrow:'People',   q:'何人で<em>使いますか</em>？',           key:'q1', opts:[{v:'ソロ（1人）',l:'ソロ',s:'1人'},{v:'2人（カップル）',l:'2人',s:'カップル'},{v:'ファミリー（3〜5人）',l:'ファミリー',s:'3〜5人'},{v:'グループ（6人以上）',l:'グループ',s:'6人以上'}] },
-      { eyebrow:'Style',    q:'どんな<em>スタイル</em>で使いますか？', key:'q2', opts:[{v:'オートキャンプ（車横付け）',l:'オートキャンプ',s:'車横付け'},{v:'バックパック（軽量重視）',l:'バックパック',s:'軽量重視'},{v:'登山・縦走',l:'登山・縦走'},{v:'フェス・イベント',l:'フェス・イベント'}] },
+      { eyebrow:'Style',    q:'どんな<em>スタイル</em>で使いますか？', key:'q2', opts:[{v:'バックパック（軽量重視）',l:'バックパック',s:'軽量重視'},{v:'登山・縦走',l:'登山・縦走'},{v:'ツーリング（バイク）',l:'ツーリング',s:'バイク'},{v:'フェス・イベント',l:'フェス・イベント'}] },
       { eyebrow:'Priority', q:'<em>重視</em>することは？',             key:'q3', opts:[{v:'設営の簡単さ',l:'設営の簡単さ'},{v:'軽さ・コンパクト',l:'軽さ・コンパクト'},{v:'広さ・居住性',l:'広さ・居住性'},{v:'デザイン・見た目',l:'デザイン・見た目'}] },
       { eyebrow:'Season',   q:'主に使う<em>季節</em>は？',             key:'q4', opts:[{v:'春・秋',l:'春・秋'},{v:'夏',l:'夏'},{v:'冬・雪中',l:'冬・雪中'},{v:'オールシーズン',l:'オールシーズン'}] },
     ],
     '寝袋': [
-      { eyebrow:'People',   q:'何人で<em>使いますか</em>？',           key:'q1', opts:[{v:'ソロ',l:'ソロ'},{v:'カップル（2人用）',l:'カップル',s:'2人用'},{v:'ファミリー（子供あり）',l:'ファミリー',s:'子供あり'}] },
+      { eyebrow:'Shape',    q:'どんな<em>寝方</em>が好きですか？',     key:'q1', opts:[{v:'マミー型（体にフィット・保温重視）',l:'マミー型',s:'体にフィット・保温重視'},{v:'封筒型（ゆったり・快適）',l:'封筒型',s:'ゆったり・快適'},{v:'どちらでも',l:'どちらでも'}] },
       { eyebrow:'Season',   q:'主に使う<em>季節・気温</em>は？',       key:'q2', opts:[{v:'夏（10℃以上）',l:'夏',s:'10℃以上'},{v:'春秋（0〜10℃）',l:'春・秋',s:'0〜10℃'},{v:'冬（-10℃以上）',l:'冬',s:'-10℃以上'},{v:'厳冬期（-10℃以下）',l:'厳冬期',s:'-10℃以下'}] },
       { eyebrow:'Priority', q:'<em>重視</em>することは？',             key:'q3', opts:[{v:'軽さ・コンパクト',l:'軽さ・コンパクト'},{v:'暖かさ',l:'暖かさ'},{v:'価格',l:'価格'},{v:'寝心地',l:'寝心地'}] },
       { eyebrow:'Style',    q:'キャンプ<em>スタイル</em>は？',         key:'q4', opts:[{v:'バックパック・登山',l:'バックパック・登山'},{v:'オートキャンプ',l:'オートキャンプ'},{v:'どちらも',l:'どちらも'}] },
@@ -797,7 +804,7 @@
   function pick(k, v) { sel[k] = v; }
 
   function renderSteps(category) {
-    const qs = CQ[category] || CQ['すべて'];
+    const qs = CQ[category] || CQ['テント'];
     document.getElementById('steps').innerHTML = qs.map((q, i) => {
       const n = i + 2;
       const isLast = i === qs.length - 1;
@@ -870,14 +877,8 @@
     document.getElementById('loading').style.display = 'flex';
     window.scrollTo({ top: 0, behavior: 'smooth' });
 
-    const cats = sel.category === 'すべて'
-      ? ['テント','寝袋','チェア','テーブル','クッカー','ランタン','焚き火台']
-      : [sel.category];
-
-    const isAll = sel.category === 'すべて';
-    const apiBody = isAll
-      ? { campStyle: sel.scene, style: sel.style, season: sel.season, goal: sel.goal, categories: cats }
-      : { campStyle: [sel.q1, sel.q2, sel.q3, sel.q4].filter(Boolean).join('、'), style: 'こだわらない', season: 'こだわらない', goal: 'こだわらない', categories: cats };
+    const cats = [sel.category];
+    const apiBody = { campStyle: [sel.q1, sel.q2, sel.q3, sel.q4].filter(Boolean).join('、'), style: 'こだわらない', season: 'こだわらない', goal: 'こだわらない', categories: cats };
 
     try {
       const res = await fetch('/api/recommend', {
@@ -897,10 +898,7 @@
     document.getElementById('loading').style.display = 'none';
     document.getElementById('results').style.display = 'block';
 
-    const isAll = sel.category === 'すべて';
-    const labels = isAll
-      ? [sel.category, sel.scene, sel.style, sel.season, sel.goal].filter(Boolean)
-      : [sel.category, sel.q1, sel.q2, sel.q3, sel.q4].filter(Boolean);
+    const labels = [sel.category, sel.q1, sel.q2, sel.q3, sel.q4].filter(Boolean);
     document.getElementById('res-meta').textContent = labels.join(' · ');
 
     // Fix1: 空結果・エラー時の表示
@@ -932,11 +930,12 @@
                 ? `<img class="prod-img" src="${p.imageUrl}" alt="${p.title}" loading="lazy">`
                 : `<div class="prod-no-img">${ICONS[r.category]||'🎒'}</div>`}
               <div class="prod-body">
+                ${p.brand ? `<p class="prod-brand">${p.brand}</p>` : ''}
                 <p class="prod-name">${p.title}</p>
                 ${p.price ? `<p class="prod-price">${p.price}</p>` : ''}
                 <div class="prod-btns">
-                  ${p.affiliateUrl ? `<a class="btn-r" href="${p.affiliateUrl}" target="_blank" rel="noopener">楽天で見る</a>` : ''}
                   <a class="btn-a" href="${p.amazonUrl || `https://www.amazon.co.jp/s?k=${encodeURIComponent(p.title)}&tag=campjoutsukur-22`}" target="_blank" rel="noopener">Amazonで見る</a>
+                  ${p.affiliateUrl ? `<a class="btn-r" href="${p.affiliateUrl}" target="_blank" rel="noopener">楽天で見る</a>` : ''}
                 </div>
               </div>
             </div>`).join('')

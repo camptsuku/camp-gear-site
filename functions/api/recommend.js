@@ -1,11 +1,6 @@
 /**
  * Cloudflare Pages Functions
  * POST /api/recommend
- *
- * Vercel との差分:
- *  - export default async function(req, res) → export const onRequestPost
- *  - process.env → context.env
- *  - res.status(N).json(obj) → new Response(JSON.stringify(obj), { status: N, headers })
  */
 
 const CORS_HEADERS = {
@@ -22,6 +17,15 @@ function json(obj, status = 200) {
 // OPTIONS プリフライト
 export async function onRequestOptions() {
   return new Response(null, { status: 204, headers: CORS_HEADERS });
+}
+
+const EXCLUDE_WORDS = [
+  'ふるさと納税', '寄付', '返礼品',
+  '収納バッグ', 'ケース', '交換', '補修', 'パーツ', '部品', '替え', '延長', 'アダプター',
+];
+
+function isExcluded(name) {
+  return EXCLUDE_WORDS.some(w => name.includes(w));
 }
 
 export async function onRequestPost(context) {
@@ -52,7 +56,7 @@ export async function onRequestPost(context) {
 目的・悩み: ${goal || 'こだわらない'}
 必要なカテゴリ: ${categoryList}
 
-各カテゴリについて5商品を調査して特定してください。
+各カテゴリについて10商品を調査して特定してください。
 必ずJSON形式のみで返してください（前置きや説明文は一切不要）。形式：
 {
   "recommendations": [
@@ -120,7 +124,7 @@ export async function onRequestPost(context) {
       accessKey:     RAKUTEN_ACCESS_KEY,
       affiliateId:   RAKUTEN_AFFILIATE_ID,
       keyword,
-      hits:     '1',
+      hits:     '5',
       sort:     '-reviewCount',
       imageFlag:'1',
       minPrice: '1',
@@ -131,7 +135,6 @@ export async function onRequestPost(context) {
     });
     const d = await res.json();
     if (d.statusCode === 429) {
-      // レートリミット時は1.2秒待ってリトライ
       await sleep(1200);
       const res2 = await fetch(`${RAKUTEN_ENDPOINT}?${params}`, {
         headers: { 'Origin': RAKUTEN_ORIGIN },
@@ -141,15 +144,30 @@ export async function onRequestPost(context) {
     return d;
   }
 
+  // 除外ワードに引っかからない最初のアイテムを返す
+  function findGoodItem(d) {
+    const items = d.Items || [];
+    for (const item of items) {
+      const name = item.Item?.itemName || '';
+      if (!isExcluded(name)) return item.Item;
+    }
+    return null;
+  }
+
   const results = [];
   for (const rec of recommendations) {
     const products = [];
-    for (const p of (rec.products || []).slice(0, 5)) {
+    for (const p of (rec.products || []).slice(0, 10)) {
       let rakutenItem = null;
       try {
         const d = await fetchRakuten(p.searchKeyword);
-        if (d.Items?.[0]?.Item) {
-          rakutenItem = d.Items[0].Item;
+        rakutenItem = findGoodItem(d);
+
+        // フォールバック: ブランド名 + カテゴリで再検索
+        if (!rakutenItem && p.brand) {
+          await sleep(300);
+          const d2 = await fetchRakuten(p.brand + ' ' + rec.category);
+          rakutenItem = findGoodItem(d2);
         }
       } catch (_) {
         // 楽天失敗時はAmazonのみで表示
@@ -160,14 +178,14 @@ export async function onRequestPost(context) {
       const amazonUrl = `https://www.amazon.co.jp/s?k=${encodeURIComponent(p.searchKeyword)}&tag=${AMAZON_TAG}`;
 
       if (rakutenItem) {
-        // 楽天の画像URL: mediumImageUrls は [{imageUrl: "https://..."}] の配列
-        // imageUrl の末尾に ?_ex=128x128 が付いている場合は除去して元サイズを使う
+        // 楽天の画像URL: ?_ex=128x128 を除去して元サイズを使う
         const rawImg = rakutenItem.mediumImageUrls?.[0]?.imageUrl || null;
         const imageUrl = rawImg ? rawImg.replace(/\?.*$/, '') : null;
 
         products.push({
           title:         rakutenItem.itemName.replace(/【[^】]*】|★[^★]*★|\[[^\]]*\]/g, '').trim().slice(0, 60),
-          price:         `¥${Number(rakutenItem.itemPrice).toLocaleString()}`,
+          brand:         p.brand || null,
+          price:         `¥${Number(rakutenItem.itemPrice).toLocaleString()}（税込）`,
           imageUrl,
           affiliateUrl:  rakutenItem.affiliateUrl || rakutenItem.itemUrl,
           amazonUrl,
@@ -177,6 +195,7 @@ export async function onRequestPost(context) {
       } else {
         products.push({
           title:         p.productName,
+          brand:         p.brand || null,
           price:         null,
           imageUrl:      null,
           affiliateUrl:  null,
