@@ -67,7 +67,7 @@ export async function onRequestPost(context) {
     return json({ error: 'Invalid JSON body' }, 400);
   }
 
-  const { campStyle, style, season, goal, categories } = body;
+  const { campStyle, style, season, goal, categories, budget } = body;
   const categoryList = categories?.join('、') || 'テント、焚き火台、寝袋、チェア、テーブル、クッカー、ランタン';
 
   // ── Step 1: Gemini で人気商品名を特定 ──────────────────────────────
@@ -77,6 +77,7 @@ export async function onRequestPost(context) {
 スタイル: ${style || 'こだわらない'}
 季節: ${season || '春秋'}
 目的・悩み: ${goal || 'こだわらない'}
+予算: ${budget || 'こだわらない'}
 必要なカテゴリ: ${categoryList}
 
 各カテゴリについて30商品を調査して特定してください。
@@ -142,6 +143,16 @@ export async function onRequestPost(context) {
   const RAKUTEN_ORIGIN = 'https://camp-gear-site.pages.dev';
   const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
+  // 予算を楽天API価格パラメータに変換
+  function getBudgetParams(b) {
+    if (b === '〜5,000円')        return { minPrice: '1',     maxPrice: '5000'  };
+    if (b === '5,000〜15,000円')  return { minPrice: '5001',  maxPrice: '15000' };
+    if (b === '15,000〜30,000円') return { minPrice: '15001', maxPrice: '30000' };
+    if (b === '30,000円以上')     return { minPrice: '30001'                    };
+    return { minPrice: '1' };
+  }
+  const bp = getBudgetParams(budget);
+
   async function fetchRakuten(keyword) {
     const params = new URLSearchParams({
       applicationId: RAKUTEN_APP_ID,
@@ -151,9 +162,10 @@ export async function onRequestPost(context) {
       hits:     '30',
       sort:     '-reviewCount',
       imageFlag:'1',
-      minPrice: '1',
+      minPrice: bp.minPrice,
       format:   'json',
     });
+    if (bp.maxPrice) params.set('maxPrice', bp.maxPrice);
     const res = await fetch(`${RAKUTEN_ENDPOINT}?${params}`, {
       headers: { 'Origin': RAKUTEN_ORIGIN },
     });
