@@ -200,26 +200,26 @@ export async function onRequestPost(context) {
   }
 
   // ── 重複判定ヘルパー ──
-  // 条件1: タイトル先頭20文字が同じ / 条件2: 価格＋画像URLが両方一致
-  function isDuplicate(cleanTitle, price, imageUrl, seenTitles, seenSignatures) {
-    if (seenTitles.has(cleanTitle.slice(0, 20))) return true;
-    if (price && imageUrl && seenSignatures.has(`${price}|${imageUrl}`)) return true;
+  // 条件1: タイトル先頭15文字が同じ / 条件2: ブランド＋価格が両方一致
+  function isDuplicate(cleanTitle, brand, price, seenTitles, seenSignatures) {
+    if (seenTitles.has(cleanTitle.slice(0, 15))) return true;
+    if (brand && price && seenSignatures.has(`${brand}|${price}`)) return true;
     return false;
   }
-  function recordSeen(cleanTitle, price, imageUrl, seenTitles, seenSignatures) {
-    seenTitles.add(cleanTitle.slice(0, 20));
-    if (price && imageUrl) seenSignatures.add(`${price}|${imageUrl}`);
+  function recordSeen(cleanTitle, brand, price, seenTitles, seenSignatures) {
+    seenTitles.add(cleanTitle.slice(0, 15));
+    if (brand && price) seenSignatures.add(`${brand}|${price}`);
   }
 
   // ── 楽天アイテムを products 配列に追加する共通処理 ──
   function addRakutenItem(rakutenItem, brand, amazonUrl, products, seenTitles, seenSignatures) {
-    if (products.length >= 30) return false;
+    if (products.length >= 10) return false;
     const rawImg = rakutenItem.mediumImageUrls?.[0]?.imageUrl || null;
     const imageUrl = rawImg ? rawImg.replace(/\?.*$/, '') : null;
     const cleanTitle = rakutenItem.itemName.replace(/【[^】]*】|★[^★]*★|\[[^\]]*\]/g, '').trim().slice(0, 60);
     const price = `¥${Number(rakutenItem.itemPrice).toLocaleString()}（税込）`;
-    if (isDuplicate(cleanTitle, price, imageUrl, seenTitles, seenSignatures)) return false;
-    recordSeen(cleanTitle, price, imageUrl, seenTitles, seenSignatures);
+    if (isDuplicate(cleanTitle, brand, price, seenTitles, seenSignatures)) return false;
+    recordSeen(cleanTitle, brand, price, seenTitles, seenSignatures);
     products.push({
       title:         cleanTitle,
       brand:         brand || null,
