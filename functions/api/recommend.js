@@ -77,12 +77,16 @@ export async function onRequestPost(context) {
     return json({ error: 'Invalid JSON body' }, 400);
   }
 
-  const { campStyle, style, season, goal, categories, budget } = body;
+  const { campStyle, style, season, goal, categories, budget, brand } = body;
   const categoryList = categories?.join('、') || 'テント、焚き火台、寝袋、チェア、テーブル、クッカー、ランタン';
 
   // ── Step 1: Gemini で人気商品名を特定 ──────────────────────────────
   // 旧プロンプト（詳細版）は git 履歴 a646992 を参照
-  const conditionText = [campStyle, budget ? `予算${budget}` : ''].filter(Boolean).join('、') || 'こだわらない';
+  const conditionText = [
+    campStyle,
+    budget ? `予算${budget}` : '',
+    brand ? `ブランド:${brand}（このブランドの商品を優先して提案すること）` : '',
+  ].filter(Boolean).join('、') || 'こだわらない';
   const prompt = `キャンプギア専門家として、以下の条件に合う日本で人気・高評価の${categoryList}本体製品を10件特定してください。
 ユーザー条件: ${conditionText}
 【重要制約】全カテゴリ必ずキャンプ・アウトドアフィールドで使う専用道具のみ提案すること。家庭用調理器具・家電・食品・衣類・インドア用品は絶対に含めないこと。クッカーはアウトドア用クッカー・バーナー・メスティンのみ（家庭用鍋・フライパン・炊飯器・低温調理器・ゆで卵メーカー等は禁止）。本体製品のみ（アクセサリー・パーツ・収納ケース除く）。JSONのみ:
@@ -186,14 +190,16 @@ export async function onRequestPost(context) {
     return found;
   }
 
-  // 楽天検索キーワードにカテゴリキーワード＋アウトドア修飾を付加する
-  function buildSearchKeyword(searchKeyword, category) {
+  // 楽天検索キーワードにカテゴリキーワード＋アウトドア修飾＋ブランドを付加する
+  function buildSearchKeyword(searchKeyword, category, preferBrand) {
     const catKw = CATEGORY_KEYWORDS[category]?.[0] || category;
     let kw = searchKeyword;
     // カテゴリキーワードが含まれていなければ追加
     if (!kw.includes(catKw)) kw = `${kw} ${catKw}`;
     // 「キャンプ」「アウトドア」のどちらも含まれていなければ「アウトドア」を先頭に追加
     if (!kw.includes('キャンプ') && !kw.includes('アウトドア')) kw = `アウトドア ${kw}`;
+    // ブランド指定がある場合は先頭に追加
+    if (preferBrand && !kw.includes(preferBrand)) kw = `${preferBrand} ${kw}`;
     return kw;
   }
 
@@ -274,7 +280,7 @@ export async function onRequestPost(context) {
     for (const p of group.geminiProducts.slice(0, 10)) {
       if (products.length >= 20) break;
       try {
-        const keyword = buildSearchKeyword(p.searchKeyword, category);
+        const keyword = buildSearchKeyword(p.searchKeyword, category, brand);
         const d = await fetchRakuten(keyword);
         const items = findGoodItems(d, category, 4);
         const amazonUrl = `https://www.amazon.co.jp/s?k=${encodeURIComponent(p.searchKeyword)}&tag=${AMAZON_TAG}`;
@@ -286,9 +292,10 @@ export async function onRequestPost(context) {
     // フォールバック検索: 20件未満の場合はカテゴリキーワードを変えて追加検索
     if (products.length < 20) {
       const catKw = CATEGORY_KEYWORDS[category]?.[0] || category;
+      const brandPrefix = brand ? `${brand} ` : '';
       const fallbacks = [
-        `アウトドア ${catKw} おすすめ`,
-        `キャンプ ${catKw} 人気`,
+        `${brandPrefix}アウトドア ${catKw} おすすめ`,
+        `${brandPrefix}キャンプ ${catKw} 人気`,
       ];
       for (const kw of fallbacks) {
         if (products.length >= 20) break;
