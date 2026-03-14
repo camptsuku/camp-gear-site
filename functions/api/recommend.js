@@ -197,64 +197,83 @@ export async function onRequestPost(context) {
     }
   }
 
+  // ── 重複判定ヘルパー ──
+  // 条件1: タイトル先頭20文字が同じ / 条件2: 価格＋画像URLが両方一致
+  function isDuplicate(cleanTitle, price, imageUrl, seenTitles, seenSignatures) {
+    if (seenTitles.has(cleanTitle.slice(0, 20))) return true;
+    if (price && imageUrl && seenSignatures.has(`${price}|${imageUrl}`)) return true;
+    return false;
+  }
+  function recordSeen(cleanTitle, price, imageUrl, seenTitles, seenSignatures) {
+    seenTitles.add(cleanTitle.slice(0, 20));
+    if (price && imageUrl) seenSignatures.add(`${price}|${imageUrl}`);
+  }
+
+  // ── 楽天アイテムを products 配列に追加する共通処理 ──
+  function addRakutenItem(rakutenItem, brand, amazonUrl, products, seenTitles, seenSignatures) {
+    if (products.length >= 30) return false;
+    const rawImg = rakutenItem.mediumImageUrls?.[0]?.imageUrl || null;
+    const imageUrl = rawImg ? rawImg.replace(/\?.*$/, '') : null;
+    const cleanTitle = rakutenItem.itemName.replace(/【[^】]*】|★[^★]*★|\[[^\]]*\]/g, '').trim().slice(0, 60);
+    const price = `¥${Number(rakutenItem.itemPrice).toLocaleString()}（税込）`;
+    if (isDuplicate(cleanTitle, price, imageUrl, seenTitles, seenSignatures)) return false;
+    recordSeen(cleanTitle, price, imageUrl, seenTitles, seenSignatures);
+    products.push({
+      title:         cleanTitle,
+      brand:         brand || null,
+      price,
+      imageUrl,
+      affiliateUrl:  rakutenItem.affiliateUrl || rakutenItem.itemUrl,
+      amazonUrl,
+      reviewCount:   rakutenItem.reviewCount   || 0,
+      reviewAverage: rakutenItem.reviewAverage || 0,
+    });
+    return true;
+  }
+
   // ── カテゴリごとに楽天検索して商品を最大30件収集 ──
   const results = [];
   for (const [category, group] of categoryGroups) {
     const products = [];
     const seenTitles = new Set();
+    const seenSignatures = new Set();
 
+    // メイン検索: Geminiの商品キーワードで順番に検索
     for (const p of group.geminiProducts.slice(0, 10)) {
       if (products.length >= 30) break;
-      let rakutenItems = [];
       try {
         const keyword = buildSearchKeyword(p.searchKeyword, category);
         const d = await fetchRakuten(keyword);
-        rakutenItems = findGoodItems(d, category, 4);
-      } catch (_) {
-        // 楽天失敗時はスキップ
-      }
+        const items = findGoodItems(d, category, 6);
+        const amazonUrl = `https://www.amazon.co.jp/s?k=${encodeURIComponent(p.searchKeyword)}&tag=${AMAZON_TAG}`;
+        for (const item of items) addRakutenItem(item, p.brand, amazonUrl, products, seenTitles, seenSignatures);
+      } catch (_) {}
       await sleep(300);
+    }
 
-      const amazonUrl = `https://www.amazon.co.jp/s?k=${encodeURIComponent(p.searchKeyword)}&tag=${AMAZON_TAG}`;
-
-      if (rakutenItems.length > 0) {
-        for (const rakutenItem of rakutenItems) {
-          if (products.length >= 30) break;
-          const rawImg = rakutenItem.mediumImageUrls?.[0]?.imageUrl || null;
-          const imageUrl = rawImg ? rawImg.replace(/\?.*$/, '') : null;
-          const cleanTitle = rakutenItem.itemName.replace(/【[^】]*】|★[^★]*★|\[[^\]]*\]/g, '').trim().slice(0, 60);
-          const titleKey = cleanTitle.slice(0, 15);
-          if (seenTitles.has(titleKey)) continue;
-          seenTitles.add(titleKey);
-          products.push({
-            title:         cleanTitle,
-            brand:         p.brand || null,
-            price:         `¥${Number(rakutenItem.itemPrice).toLocaleString()}（税込）`,
-            imageUrl,
-            affiliateUrl:  rakutenItem.affiliateUrl || rakutenItem.itemUrl,
-            amazonUrl,
-            reviewCount:   rakutenItem.reviewCount   || 0,
-            reviewAverage: rakutenItem.reviewAverage || 0,
-          });
-        }
-      } else {
-        // 楽天ヒットなし → Amazon リンクのみで1件
-        if (products.length >= 30) continue;
-        const titleKey = p.productName.slice(0, 15);
-        if (seenTitles.has(titleKey)) continue;
-        seenTitles.add(titleKey);
-        products.push({
-          title:         p.productName,
-          brand:         p.brand || null,
-          price:         null,
-          imageUrl:      null,
-          affiliateUrl:  null,
-          amazonUrl,
-          reviewCount:   0,
-          reviewAverage: 0,
-        });
+    // フォールバック検索: 30件未満の場合はカテゴリキーワードを変えて追加検索
+    if (products.length < 30) {
+      const catKw = CATEGORY_KEYWORDS[category]?.[0] || category;
+      const fallbacks = [
+        `${catKw} おすすめ`,
+        `${catKw} 人気`,
+        `${catKw} 軽量 コンパクト`,
+        `${catKw} 初心者`,
+        `${catKw} コスパ`,
+      ];
+      for (const kw of fallbacks) {
+        if (products.length >= 30) break;
+        try {
+          const d = await fetchRakuten(kw);
+          const need = 30 - products.length;
+          const items = findGoodItems(d, category, need);
+          const amazonUrl = `https://www.amazon.co.jp/s?k=${encodeURIComponent(kw)}&tag=${AMAZON_TAG}`;
+          for (const item of items) addRakutenItem(item, null, amazonUrl, products, seenTitles, seenSignatures);
+        } catch (_) {}
+        await sleep(300);
       }
     }
+
     results.push({ category, reason: group.reason, products });
   }
 
