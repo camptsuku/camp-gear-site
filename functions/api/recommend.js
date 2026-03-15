@@ -99,7 +99,7 @@ export async function onRequestPost(context) {
     return json({ error: 'Invalid JSON body' }, 400);
   }
 
-  const { campStyle, style, season, goal, categories, budget, brand } = body;
+  const { campStyle, style, season, goal, categories, budget } = body;
   const categoryList = categories?.join('、') || 'テント、焚き火台、寝袋、チェア、テーブル、クッカー、ランタン';
 
   // ── Step 1: Gemini で人気商品名を特定 ──────────────────────────────
@@ -107,7 +107,6 @@ export async function onRequestPost(context) {
   const conditionText = [
     campStyle,
     budget ? `予算${budget}` : '',
-    brand ? `ブランド:${brand}（このブランドの商品を優先して提案すること）` : '',
   ].filter(Boolean).join('、') || 'こだわらない';
   const prompt = `キャンプギア専門家として、以下の条件に合う日本で人気・高評価の${categoryList}本体製品を10件特定してください。
 ユーザー条件: ${conditionText}
@@ -212,16 +211,14 @@ export async function onRequestPost(context) {
     return found;
   }
 
-  // 楽天検索キーワードにカテゴリキーワード＋アウトドア修飾＋ブランドを付加する
-  function buildSearchKeyword(searchKeyword, category, preferBrand) {
+  // 楽天検索キーワードにカテゴリキーワード＋アウトドア修飾を付加する
+  function buildSearchKeyword(searchKeyword, category) {
     const catKw = CATEGORY_KEYWORDS[category]?.[0] || category;
     let kw = searchKeyword;
     // カテゴリキーワードが含まれていなければ追加
     if (!kw.includes(catKw)) kw = `${kw} ${catKw}`;
     // 「キャンプ」「アウトドア」のどちらも含まれていなければ「アウトドア」を先頭に追加
     if (!kw.includes('キャンプ') && !kw.includes('アウトドア')) kw = `アウトドア ${kw}`;
-    // ブランド指定がある場合は先頭に追加
-    if (preferBrand && !kw.includes(preferBrand)) kw = `${preferBrand} ${kw}`;
     return kw;
   }
 
@@ -298,9 +295,9 @@ export async function onRequestPost(context) {
     const seenBrandPrices = new Set();
     const brandCount = new Map();
 
-    // ── Stage 1: Gemini キーワード + ブランド付き並列検索 ──
+    // ── Stage 1: Gemini キーワード並列検索 ──
     const mainFetches = group.geminiProducts.slice(0, 10).map(p => {
-      const keyword = buildSearchKeyword(p.searchKeyword, category, brand);
+      const keyword = buildSearchKeyword(p.searchKeyword, category);
       const amazonUrl = `https://www.amazon.co.jp/s?k=${encodeURIComponent(p.searchKeyword)}&tag=${AMAZON_TAG}`;
       return fetchRakuten(keyword)
         .then(d => ({ p, d, amazonUrl }))
@@ -313,27 +310,8 @@ export async function onRequestPost(context) {
       for (const item of items) addRakutenItem(item, r.p.brand, r.amazonUrl, products, seenBrandTitles, seenBrandPrices, brandCount);
     }
 
-    // ── Stage 2: ブランド指定あり && 10件未満 → エイリアス×カテゴリ直接検索 ──
-    if (brand && products.length < 10) {
-      const catKw = CATEGORY_KEYWORDS[category]?.[0] || category;
-      const aliases = BRAND_ALIASES[brand] || [brand];
-      const aliasFetches = aliases.map(alias => {
-        const kw = `${alias} ${catKw}`;
-        const amazonUrl = `https://www.amazon.co.jp/s?k=${encodeURIComponent(kw)}&tag=${AMAZON_TAG}`;
-        return fetchRakuten(kw)
-          .then(d => ({ d, amazonUrl }))
-          .catch(() => null);
-      });
-      const aliasResults = await Promise.all(aliasFetches);
-      for (const r of aliasResults) {
-        if (!r || products.length >= 20) continue;
-        const items = findGoodItems(r.d, category, 6);
-        for (const item of items) addRakutenItem(item, brand, r.amazonUrl, products, seenBrandTitles, seenBrandPrices, brandCount);
-      }
-    }
-
-    // ── Stage 3: まだ20件未満 → ブランドなしで補完（ブランド指定なし時のみ）──
-    if (!brand && products.length < 20) {
+    // ── Stage 2: まだ20件未満 → 補完検索 ──
+    if (products.length < 20) {
       const catKw = CATEGORY_KEYWORDS[category]?.[0] || category;
       const fillFetches = [
         `アウトドア ${catKw} おすすめ`,
