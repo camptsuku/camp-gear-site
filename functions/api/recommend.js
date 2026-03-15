@@ -249,34 +249,48 @@ export async function onRequestPost(context) {
     return null;
   }
 
-  // ── 重複判定・記録ヘルパー ──
-  // 条件1: タイトル先頭10文字が一致
-  // 条件2: 同じ画像URL
-  // 条件3: 同じ価格＋同じブランド
-  function isDuplicate(cleanTitle, brand, price, imageUrl, seenTitlePrefixes, seenImages, seenBrandPrices) {
-    if (seenTitlePrefixes.has(cleanTitle.slice(0, 10))) return true;
-    if (imageUrl && seenImages.has(imageUrl)) return true;
-    if (brand && price && seenBrandPrices.has(`${brand}|${price}`)) return true;
-    return false;
-  }
-  function recordSeen(cleanTitle, brand, price, imageUrl, seenTitlePrefixes, seenImages, seenBrandPrices) {
-    seenTitlePrefixes.add(cleanTitle.slice(0, 10));
-    if (imageUrl) seenImages.add(imageUrl);
-    if (brand && price) seenBrandPrices.add(`${brand}|${price}`);
+  // ── 型番抽出 ──
+  function extractModelNumbers(title) {
+    return title.match(/[A-Z]{1,5}-?[0-9]{2,5}[A-Z0-9-]*/g) || [];
   }
 
-  // ── 楽天アイテムを products 配列に追加する共通処理 ──
-  function addRakutenItem(rakutenItem, geminiBrand, amazonUrl, products, seenTitlePrefixes, seenImages, seenBrandPrices) {
-    if (products.length >= 20) return false;
+  // ── 全候補を収集したあとまとめて重複除去 ──
+  // 条件a: itemCode が同じ
+  // 条件b: 型番が一致
+  // 条件c: 商品名先頭15文字が一致
+  function deduplicateCandidates(candidates) {
+    const seenCodes   = new Set();
+    const seenModels  = new Set();
+    const seenPrefixes = new Set();
+    const result = [];
+    for (const c of candidates) {
+      if (result.length >= 20) break;
+      if (c.itemCode && seenCodes.has(c.itemCode)) continue;
+      const models = extractModelNumbers(c.rawTitle);
+      if (models.some(m => seenModels.has(m))) continue;
+      const prefix = c.rawTitle.slice(0, 15);
+      if (seenPrefixes.has(prefix)) continue;
+      // 重複なし → 記録して追加
+      if (c.itemCode) seenCodes.add(c.itemCode);
+      models.forEach(m => seenModels.add(m));
+      seenPrefixes.add(prefix);
+      const { rawTitle, itemCode, ...product } = c;
+      result.push(product);
+    }
+    return result;
+  }
+
+  // ── 楽天アイテムを候補配列に追加（重複チェックなし）──
+  function addRakutenItem(rakutenItem, geminiBrand, amazonUrl, candidates) {
     const rawImg = rakutenItem.mediumImageUrls?.[0]?.imageUrl || null;
     const imageUrl = rawImg ? rawImg.replace(/\?.*$/, '') : null;
-    const cleanTitle = rakutenItem.itemName.replace(/【[^】]*】|★[^★]*★|\[[^\]]*\]/g, '').trim().slice(0, 60);
+    const rawTitle = rakutenItem.itemName;
+    const cleanTitle = rawTitle.replace(/【[^】]*】|★[^★]*★|\[[^\]]*\]/g, '').trim().slice(0, 60);
     const price = `¥${Number(rakutenItem.itemPrice).toLocaleString()}（税込）`;
-    // ブランド: 楽天フィールド → Gemini提供 → タイトル抽出 の優先順
-    const brand = (rakutenItem.brandName || rakutenItem.makerName || geminiBrand || extractBrandFromTitle(rakutenItem.itemName)) || null;
-    if (isDuplicate(cleanTitle, brand, price, imageUrl, seenTitlePrefixes, seenImages, seenBrandPrices)) return false;
-    recordSeen(cleanTitle, brand, price, imageUrl, seenTitlePrefixes, seenImages, seenBrandPrices);
-    products.push({
+    const brand = (rakutenItem.brandName || rakutenItem.makerName || geminiBrand || extractBrandFromTitle(rawTitle)) || null;
+    candidates.push({
+      rawTitle,
+      itemCode:      rakutenItem.itemCode || null,
       title:         cleanTitle,
       brand,
       price,
@@ -286,16 +300,12 @@ export async function onRequestPost(context) {
       reviewCount:   rakutenItem.reviewCount   || 0,
       reviewAverage: rakutenItem.reviewAverage || 0,
     });
-    return true;
   }
 
-  // ── カテゴリごとに楽天検索して商品を最大10件収集 ──
+  // ── カテゴリごとに楽天検索して商品を収集・重複除去 ──
   const results = [];
   for (const [category, group] of categoryGroups) {
-    const products = [];
-    const seenTitlePrefixes = new Set();
-    const seenImages = new Set();
-    const seenBrandPrices = new Set();
+    const candidates = [];
 
     // ── Stage 1: Gemini キーワード並列検索 ──
     const mainFetches = group.geminiProducts.slice(0, 10).map(p => {
@@ -307,32 +317,31 @@ export async function onRequestPost(context) {
     });
     const mainResults = await Promise.all(mainFetches);
     for (const r of mainResults) {
-      if (!r || products.length >= 20) continue;
+      if (!r) continue;
       const items = findGoodItems(r.d, category, 4);
-      for (const item of items) addRakutenItem(item, r.p.brand, r.amazonUrl, products, seenTitlePrefixes, seenImages, seenBrandPrices);
+      for (const item of items) addRakutenItem(item, r.p.brand, r.amazonUrl, candidates);
     }
 
-    // ── Stage 2: まだ20件未満 → 補完検索 ──
-    if (products.length < 20) {
-      const catKw = CATEGORY_KEYWORDS[category]?.[0] || category;
-      const fillFetches = [
-        `アウトドア ${catKw} おすすめ`,
-        `キャンプ ${catKw} 人気`,
-      ].map(kw => {
-        const amazonUrl = `https://www.amazon.co.jp/s?k=${encodeURIComponent(kw)}&tag=${AMAZON_TAG}`;
-        return fetchRakuten(kw)
-          .then(d => ({ d, amazonUrl }))
-          .catch(() => null);
-      });
-      const fillResults = await Promise.all(fillFetches);
-      for (const r of fillResults) {
-        if (!r || products.length >= 20) continue;
-        const need = 20 - products.length;
-        const items = findGoodItems(r.d, category, need);
-        for (const item of items) addRakutenItem(item, null, r.amazonUrl, products, seenTitlePrefixes, seenImages, seenBrandPrices);
-      }
+    // ── Stage 2: 補完検索 ──
+    const catKw = CATEGORY_KEYWORDS[category]?.[0] || category;
+    const fillFetches = [
+      `アウトドア ${catKw} おすすめ`,
+      `キャンプ ${catKw} 人気`,
+    ].map(kw => {
+      const amazonUrl = `https://www.amazon.co.jp/s?k=${encodeURIComponent(kw)}&tag=${AMAZON_TAG}`;
+      return fetchRakuten(kw)
+        .then(d => ({ d, amazonUrl }))
+        .catch(() => null);
+    });
+    const fillResults = await Promise.all(fillFetches);
+    for (const r of fillResults) {
+      if (!r) continue;
+      const items = findGoodItems(r.d, category, 10);
+      for (const item of items) addRakutenItem(item, null, r.amazonUrl, candidates);
     }
 
+    // 全候補を収集後にまとめて重複除去して最大20件
+    const products = deduplicateCandidates(candidates);
     results.push({ category, reason: group.reason, products });
   }
 
