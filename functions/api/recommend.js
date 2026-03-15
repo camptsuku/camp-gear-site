@@ -39,6 +39,8 @@ const EXCLUDE_WORDS = [
   'ステッキ', '杖', '歩行', '介護', 'シルバー', '福祉', '医療', '車椅子', '補助',
   // 防災・衛生用品
   'トイレ', '便器', '簡易トイレ', '防災', '避難', '非常用', '災害', '緊急', '救急',
+  // 靴・フットウェア
+  'シューズ', 'ブーツ', 'スニーカー', 'サンダル', '靴', 'フットウェア', 'インソール', 'ソール',
 ];
 
 // カテゴリごとにタイトルに含まれるべきキーワード（いずれか1つ以上）
@@ -248,25 +250,23 @@ export async function onRequestPost(context) {
   }
 
   // ── 重複判定・記録ヘルパー ──
-  // 条件1: ブランド＋タイトル先頭15文字が一致
-  // 条件2: 同じ価格＋同じブランド
-  // 条件3: 同一ブランドが既に2件以上登録済み
-  function isDuplicate(cleanTitle, brand, price, seenBrandTitles, seenBrandPrices, brandCount) {
-    const titleKey = `${brand || ''}|${cleanTitle.slice(0, 15)}`;
-    if (seenBrandTitles.has(titleKey)) return true;
+  // 条件1: タイトル先頭10文字が一致
+  // 条件2: 同じ画像URL
+  // 条件3: 同じ価格＋同じブランド
+  function isDuplicate(cleanTitle, brand, price, imageUrl, seenTitlePrefixes, seenImages, seenBrandPrices) {
+    if (seenTitlePrefixes.has(cleanTitle.slice(0, 10))) return true;
+    if (imageUrl && seenImages.has(imageUrl)) return true;
     if (brand && price && seenBrandPrices.has(`${brand}|${price}`)) return true;
-    if (brand && (brandCount.get(brand) || 0) >= 2) return true;
     return false;
   }
-  function recordSeen(cleanTitle, brand, price, seenBrandTitles, seenBrandPrices, brandCount) {
-    const titleKey = `${brand || ''}|${cleanTitle.slice(0, 15)}`;
-    seenBrandTitles.add(titleKey);
+  function recordSeen(cleanTitle, brand, price, imageUrl, seenTitlePrefixes, seenImages, seenBrandPrices) {
+    seenTitlePrefixes.add(cleanTitle.slice(0, 10));
+    if (imageUrl) seenImages.add(imageUrl);
     if (brand && price) seenBrandPrices.add(`${brand}|${price}`);
-    if (brand) brandCount.set(brand, (brandCount.get(brand) || 0) + 1);
   }
 
   // ── 楽天アイテムを products 配列に追加する共通処理 ──
-  function addRakutenItem(rakutenItem, geminiBrand, amazonUrl, products, seenBrandTitles, seenBrandPrices, brandCount) {
+  function addRakutenItem(rakutenItem, geminiBrand, amazonUrl, products, seenTitlePrefixes, seenImages, seenBrandPrices) {
     if (products.length >= 20) return false;
     const rawImg = rakutenItem.mediumImageUrls?.[0]?.imageUrl || null;
     const imageUrl = rawImg ? rawImg.replace(/\?.*$/, '') : null;
@@ -274,8 +274,8 @@ export async function onRequestPost(context) {
     const price = `¥${Number(rakutenItem.itemPrice).toLocaleString()}（税込）`;
     // ブランド: 楽天フィールド → Gemini提供 → タイトル抽出 の優先順
     const brand = (rakutenItem.brandName || rakutenItem.makerName || geminiBrand || extractBrandFromTitle(rakutenItem.itemName)) || null;
-    if (isDuplicate(cleanTitle, brand, price, seenBrandTitles, seenBrandPrices, brandCount)) return false;
-    recordSeen(cleanTitle, brand, price, seenBrandTitles, seenBrandPrices, brandCount);
+    if (isDuplicate(cleanTitle, brand, price, imageUrl, seenTitlePrefixes, seenImages, seenBrandPrices)) return false;
+    recordSeen(cleanTitle, brand, price, imageUrl, seenTitlePrefixes, seenImages, seenBrandPrices);
     products.push({
       title:         cleanTitle,
       brand,
@@ -293,9 +293,9 @@ export async function onRequestPost(context) {
   const results = [];
   for (const [category, group] of categoryGroups) {
     const products = [];
-    const seenBrandTitles = new Set();
+    const seenTitlePrefixes = new Set();
+    const seenImages = new Set();
     const seenBrandPrices = new Set();
-    const brandCount = new Map();
 
     // ── Stage 1: Gemini キーワード並列検索 ──
     const mainFetches = group.geminiProducts.slice(0, 10).map(p => {
@@ -309,7 +309,7 @@ export async function onRequestPost(context) {
     for (const r of mainResults) {
       if (!r || products.length >= 20) continue;
       const items = findGoodItems(r.d, category, 4);
-      for (const item of items) addRakutenItem(item, r.p.brand, r.amazonUrl, products, seenBrandTitles, seenBrandPrices, brandCount);
+      for (const item of items) addRakutenItem(item, r.p.brand, r.amazonUrl, products, seenTitlePrefixes, seenImages, seenBrandPrices);
     }
 
     // ── Stage 2: まだ20件未満 → 補完検索 ──
@@ -329,7 +329,7 @@ export async function onRequestPost(context) {
         if (!r || products.length >= 20) continue;
         const need = 20 - products.length;
         const items = findGoodItems(r.d, category, need);
-        for (const item of items) addRakutenItem(item, null, r.amazonUrl, products, seenBrandTitles, seenBrandPrices, brandCount);
+        for (const item of items) addRakutenItem(item, null, r.amazonUrl, products, seenTitlePrefixes, seenImages, seenBrandPrices);
       }
     }
 
