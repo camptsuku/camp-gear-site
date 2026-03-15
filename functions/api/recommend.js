@@ -249,31 +249,49 @@ export async function onRequestPost(context) {
     return null;
   }
 
-  // ── 型番抽出 ──
+  // ── 型番抽出（英数字+数字パターン、大文字小文字問わず） ──
   function extractModelNumbers(title) {
-    return title.match(/[A-Z]{1,5}-?[0-9]{2,5}[A-Z0-9-]*/g) || [];
+    // 例: STP-381, CS-520, 170T, SDX-001 など
+    return (title.match(/[A-Za-z]{1,5}-?[0-9]{2,6}[A-Za-z0-9-]*/g) || [])
+      .map(m => m.toUpperCase());
+  }
+
+  // ── 商品名を正規化（バナー・記号・空白を除去して比較用文字列を作る） ──
+  function normalizeTitle(title) {
+    return title
+      // 【】★[]《》内の装飾テキストを除去
+      .replace(/【[^】]*】|★[^★]*★|\[[^\]]*\]|《[^》]*》/g, '')
+      // 記号・空白を除去
+      .replace(/[　\s\-・\/\\|＿_~～]/g, '')
+      // 全角英数を半角に変換
+      .replace(/[Ａ-Ｚａ-ｚ０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0))
+      .toLowerCase()
+      .trim();
   }
 
   // ── 全候補を収集したあとまとめて重複除去 ──
   // 条件a: itemCode が同じ
-  // 条件b: 型番が一致
-  // 条件c: 商品名先頭15文字が一致
+  // 条件b: 型番が一致（型番あり商品のみ）
+  // 条件c: 正規化した商品名の先頭20文字が一致
   function deduplicateCandidates(candidates) {
-    const seenCodes   = new Set();
-    const seenModels  = new Set();
+    const seenCodes    = new Set();
+    const seenModels   = new Set();
     const seenPrefixes = new Set();
     const result = [];
     for (const c of candidates) {
       if (result.length >= 20) break;
+      // 条件a: itemCode重複
       if (c.itemCode && seenCodes.has(c.itemCode)) continue;
+      // 条件b: 型番重複（型番が存在する場合のみチェック）
       const models = extractModelNumbers(c.rawTitle);
-      if (models.some(m => seenModels.has(m))) continue;
-      const prefix = c.rawTitle.slice(0, 15);
-      if (seenPrefixes.has(prefix)) continue;
+      if (models.length > 0 && models.some(m => seenModels.has(m))) continue;
+      // 条件c: 正規化タイトルの先頭20文字が一致
+      const normalizedPrefix = normalizeTitle(c.rawTitle).slice(0, 20);
+      if (normalizedPrefix && seenPrefixes.has(normalizedPrefix)) continue;
       // 重複なし → 記録して追加
       if (c.itemCode) seenCodes.add(c.itemCode);
       models.forEach(m => seenModels.add(m));
-      seenPrefixes.add(prefix);
+      if (normalizedPrefix) seenPrefixes.add(normalizedPrefix);
       const { rawTitle, itemCode, ...product } = c;
       result.push(product);
     }
