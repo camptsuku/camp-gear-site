@@ -308,10 +308,14 @@ JSONのみ:
   // ── 商品名を正規化（バナー・記号・空白を除去して比較用文字列を作る） ──
   function normalizeTitle(title) {
     return title
+      // 【】★[]《》内の装飾を除去
       .replace(/【[^】]*】|★[^★]*★|\[[^\]]*\]|《[^》]*》/g, '')
-      .replace(/^[\s　]*[\\\/＼／]?[^\u3040-\u30FF\u4E00-\u9FFFa-zA-Z]*[\\\/＼／][\s　]*/g, '')
-      .replace(/^(送料無料|在庫[^　\s]*|期間限定|数量限定|クーポン|ポイント|レビュー[^　\s]*)[　\s]*/g, '')
-      .replace(/[　\s\-・\/\\|＿_~～]/g, '')
+      // 先頭の販促ワード（送料無料・期間限定等）を繰り返し除去
+      .replace(/^(送料無料|在庫[^\s　]*|期間限定|数量限定|クーポン対象|ポイント[^\s　]*|レビュー[^\s　]*|セール|SALE|sale)[　\s]*/g, '')
+      .replace(/^(送料無料|在庫[^\s　]*|期間限定|数量限定|クーポン対象|ポイント[^\s　]*|レビュー[^\s　]*|セール|SALE|sale)[　\s]*/g, '')
+      // 記号・空白・区切り文字を除去
+      .replace(/[　\s\-・\/\\|＿_~～。、！!？?◆◇■□▼△▲]/g, '')
+      // 全角英数を半角に変換
       .replace(/[Ａ-Ｚａ-ｚ０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0))
       .toLowerCase()
       .trim();
@@ -319,10 +323,12 @@ JSONのみ:
 
   // ── 全候補を収集したあとまとめて重複除去 ──
   // 条件a: itemCode が同じ
-  // 条件b: 型番が一致（型番あり商品のみ）
-  // 条件c: 正規化した商品名の先頭20文字が一致
+  // 条件b: 画像URL が同じ（同一商品を別店舗が出品）
+  // 条件c: 型番が一致（型番あり商品のみ）
+  // 条件d: 正規化した商品名の先頭30文字が一致
   function deduplicateCandidates(candidates) {
     const seenCodes    = new Set();
+    const seenImages   = new Set();
     const seenModels   = new Set();
     const seenPrefixes = new Set();
     const result = [];
@@ -330,14 +336,17 @@ JSONのみ:
       if (result.length >= 20) break;
       // 条件a: itemCode重複
       if (c.itemCode && seenCodes.has(c.itemCode)) continue;
-      // 条件b: 型番重複（型番が存在する場合のみチェック）
+      // 条件b: 画像URL重複（同一商品の別出品を確実に検出）
+      if (c.imageUrl && seenImages.has(c.imageUrl)) continue;
+      // 条件c: 型番重複（型番が存在する場合のみチェック）
       const models = extractModelNumbers(c.rawTitle);
       if (models.length > 0 && models.some(m => seenModels.has(m))) continue;
-      // 条件c: 正規化タイトルの先頭20文字が一致
-      const normalizedPrefix = normalizeTitle(c.rawTitle).slice(0, 20);
+      // 条件d: 正規化タイトルの先頭30文字が一致
+      const normalizedPrefix = normalizeTitle(c.rawTitle).slice(0, 30);
       if (normalizedPrefix && seenPrefixes.has(normalizedPrefix)) continue;
       // 重複なし → 記録して追加
       if (c.itemCode) seenCodes.add(c.itemCode);
+      if (c.imageUrl) seenImages.add(c.imageUrl);
       models.forEach(m => seenModels.add(m));
       if (normalizedPrefix) seenPrefixes.add(normalizedPrefix);
       const { rawTitle, itemCode, ...product } = c;
