@@ -322,8 +322,10 @@ JSONのみ:
       if (c.imageUrl && seenImages.has(c.imageUrl)) continue;
       const models = extractModelNumbers(c.rawTitle || c.title || '');
       if (models.length > 0 && models.some(m => seenModels.has(m))) continue;
-      const normalizedPrefix = normalizeTitle(c.rawTitle || c.title || '').slice(0, 30);
+      const normalizedPrefix = normalizeTitle(c.rawTitle || c.title || '').slice(0, 20);
       if (normalizedPrefix && seenPrefixes.has(normalizedPrefix)) continue;
+      // 既存prefixのいずれかが今のprefixの先頭に一致する場合も重複とみなす
+      if ([...seenPrefixes].some(seen => normalizedPrefix.startsWith(seen) || seen.startsWith(normalizedPrefix))) continue;
       if (c.itemCode) seenCodes.add(c.itemCode);
       if (c.imageUrl) seenImages.add(c.imageUrl);
       models.forEach(m => seenModels.add(m));
