@@ -1019,10 +1019,12 @@
     const qs = CQ[sel.category] || [];
     const budgetQ = qs.find(q => q.eyebrow === 'Budget');
     const budget = budgetQ ? (sel[budgetQ.key] || null) : null;
+    const colorQ = qs.find(q => q.eyebrow === 'Color');
+    const colorTone = (colorQ && sel[colorQ.key] && sel[colorQ.key] !== 'こだわらない') ? sel[colorQ.key] : null;
     const styleAnswers = qs
-      .filter(q => q.eyebrow !== 'Budget')
+      .filter(q => q.eyebrow !== 'Budget' && q.eyebrow !== 'Color')
       .map(q => sel[q.key]).filter(Boolean);
-    const apiBody = { campStyle: styleAnswers.join('、'), budget, style: 'こだわらない', season: 'こだわらない', goal: 'こだわらない', categories: cats };
+    const apiBody = { campStyle: styleAnswers.join('、'), budget, colorTone, style: 'こだわらない', season: 'こだわらない', goal: 'こだわらない', categories: cats };
 
     try {
       const res = await fetch('/api/recommend', {

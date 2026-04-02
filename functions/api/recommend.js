@@ -158,10 +158,17 @@ export async function onRequestPost(context) {
     return json({ error: 'Invalid JSON body' }, 400);
   }
 
-  const { campStyle, style, season, goal, categories, budget } = body;
+  const { campStyle, style, season, goal, categories, budget, colorTone } = body;
   const categoryList = categories?.join('、') || 'テント、焚き火台、寝袋、チェア、テーブル、クッカー、ランタン';
 
-  const conditionText = [campStyle, budget ? `予算${budget}` : ''].filter(Boolean).join('、') || 'こだわらない';
+  const conditionText = [
+    campStyle,
+    colorTone ? `カラー:${colorTone}` : '',
+    budget ? `予算${budget}` : '',
+  ].filter(Boolean).join('、') || 'こだわらない';
+  const colorInstruction = colorTone
+    ? `・カラートーン「${colorTone}」指定あり。searchKeywordに必ず対応する色名（モノトーン系→黒・グレー・ブラック・ホワイト、ナチュラル・アース系→ベージュ・タン・カーキ・ブラウン、鮮やか系→赤・青・黄など）を含めること。指定カラー以外の商品は提案しないこと。`
+    : '';
   const prompt = `キャンプギア専門家として、以下の条件に合う日本で人気・高評価の${categoryList}本体製品を10件特定してください。
 ユーザー条件: ${conditionText}
 【絶対厳守】フィールドで使うキャンプ・アウトドア専用ギアのみ。以下は一切禁止：
@@ -170,7 +177,7 @@ export async function onRequestPost(context) {
 ・室内照明（シーリングライト・LED電球・ペンダントライト等）
 ・衣類・靴・食品・日用品・防災用品・医療用品・介護用品
 ・イベント用テント・ガゼボ（キャンプ場で使うドームテント・ワンポールテント等のみ可）
-・アクセサリー・パーツ・収納ケース（本体のみ）
+・アクセサリー・パーツ・収納ケース（本体のみ）${colorInstruction ? '\n' + colorInstruction : ''}
 JSONのみ:
 {"recommendations":[{"category":"テント","reason":"選定理由100字以内","products":[{"productName":"スノーピーク アメニティドームM","brand":"スノーピーク","searchKeyword":"スノーピーク アメニティドームM テント"}]}]}`;
 
@@ -409,6 +416,26 @@ JSONのみ:
 
     const products = deduplicateCandidates(candidates);
     results.push({ category, reason: group.reason, products });
+  }
+
+  // ── Analytics: GASスプレッドシートに診断データを記録 ────────────────
+  const GAS_WEBHOOK_URL = (env.GAS_WEBHOOK_URL || '').trim();
+  if (GAS_WEBHOOK_URL) {
+    const searchKeywords = recommendations.flatMap(rec =>
+      (rec.products || []).map(p => p.productName || p.searchKeyword)
+    );
+    fetch(GAS_WEBHOOK_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        campStyle, categories, budget,
+        style: body.style || '',
+        season: body.season || '',
+        goal: body.goal || '',
+        colorTone: body.colorTone || '',
+        searchKeywords,
+      }),
+    }).catch(e => console.error('GAS webhook error:', e.message));
   }
 
   return json({ results });
