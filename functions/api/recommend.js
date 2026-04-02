@@ -372,14 +372,14 @@ JSONのみ:
     });
     const mainResults = await Promise.all(mainFetches);
     for (const [rakutenResult, amazonItems] of mainResults) {
-      // 楽天商品を追加
+      // Amazon商品を先に追加（優先表示）
+      for (const item of amazonItems) {
+        candidates.push({ ...item, rawTitle: item.title, itemCode: null });
+      }
+      // 楽天商品を後から追加（補完）
       if (rakutenResult) {
         const items = findGoodItems(rakutenResult.d, category, 4);
         for (const item of items) addRakutenItem(item, rakutenResult.p.brand, rakutenResult.amazonFallbackUrl, candidates);
-      }
-      // Amazon商品を追加（rawTitleをtitleで代替）
-      for (const item of amazonItems) {
-        candidates.push({ ...item, rawTitle: item.title, itemCode: null });
       }
     }
 
