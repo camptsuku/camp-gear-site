@@ -417,18 +417,18 @@ JSONのみ:
     const searchKeywords = recommendations.flatMap(rec =>
       (rec.products || []).map(p => p.productName || p.searchKeyword)
     );
-    fetch(GAS_WEBHOOK_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        campStyle, categories, budget,
-        style: body.style || '',
-        season: body.season || '',
-        goal: body.goal || '',
-        colorTone: body.colorTone || '',
-        searchKeywords,
-      }),
-    }).catch(e => console.error('GAS webhook error:', e.message));
+    const payload = JSON.stringify({
+      campStyle, categories, budget,
+      style: body.style || '',
+      season: body.season || '',
+      goal: body.goal || '',
+      colorTone: body.colorTone || '',
+      searchKeywords,
+    });
+    // GASはPOSTのリダイレクトに非対応のため、GETパラメータで送信
+    const gasUrl = `${GAS_WEBHOOK_URL}?data=${encodeURIComponent(payload)}`;
+    fetch(gasUrl, { method: 'GET' })
+      .catch(e => console.error('GAS webhook error:', e.message));
   }
 
   return json({ results });
