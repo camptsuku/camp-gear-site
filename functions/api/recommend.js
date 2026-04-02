@@ -158,10 +158,17 @@ export async function onRequestPost(context) {
     return json({ error: 'Invalid JSON body' }, 400);
   }
 
-  const { campStyle, style, season, goal, categories, budget } = body;
+  const { campStyle, categories, budget, style, season, goal, colorTone } = body;
   const categoryList = categories?.join('、') || 'テント、焚き火台、寝袋、チェア、テーブル、クッカー、ランタン';
 
-  const conditionText = [campStyle, budget ? `予算${budget}` : ''].filter(Boolean).join('、') || 'こだわらない';
+  const conditionText = [
+    campStyle,
+    style ? `スタイル:${style}` : '',
+    season ? `季節:${season}` : '',
+    goal ? `重視:${goal}` : '',
+    colorTone ? `カラー:${colorTone}` : '',
+    budget ? `予算${budget}` : '',
+  ].filter(Boolean).join('、') || 'こだわらない';
   const prompt = `キャンプギア専門家として、以下の条件に合う日本で人気・高評価の${categoryList}本体製品を10件特定してください。
 ユーザー条件: ${conditionText}
 【絶対厳守】フィールドで使うキャンプ・アウトドア専用ギアのみ。以下は一切禁止：
@@ -171,6 +178,7 @@ export async function onRequestPost(context) {
 ・衣類・靴・食品・日用品・防災用品・医療用品・介護用品
 ・イベント用テント・ガゼボ（キャンプ場で使うドームテント・ワンポールテント等のみ可）
 ・アクセサリー・パーツ・収納ケース（本体のみ）
+・カラートーン指定がある場合（例：モノトーン系）は、searchKeywordに必ず色名（例：黒・グレー・ブラック・ホワイト）を含めること。カラー条件に合わない色の商品のsearchKeywordは生成しないこと。
 JSONのみ:
 {"recommendations":[{"category":"テント","reason":"選定理由100字以内","products":[{"productName":"スノーピーク アメニティドームM","brand":"スノーピーク","searchKeyword":"スノーピーク アメニティドームM テント"}]}]}`;
 
