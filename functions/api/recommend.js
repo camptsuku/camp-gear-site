@@ -324,8 +324,10 @@ JSONのみ:
       if (models.length > 0 && models.some(m => seenModels.has(m))) continue;
       const normalizedPrefix = normalizeTitle(c.rawTitle || c.title || '').slice(0, 20);
       if (normalizedPrefix && seenPrefixes.has(normalizedPrefix)) continue;
-      // 既存prefixのいずれかが今のprefixの先頭に一致する場合も重複とみなす
-      if ([...seenPrefixes].some(seen => normalizedPrefix.startsWith(seen) || seen.startsWith(normalizedPrefix))) continue;
+      // 既存prefixとの部分一致チェック（同商品の表記ゆれ対応）
+      if (normalizedPrefix && [...seenPrefixes].some(seen =>
+        normalizedPrefix.startsWith(seen) || seen.startsWith(normalizedPrefix)
+      )) continue;
       if (c.itemCode) seenCodes.add(c.itemCode);
       if (c.imageUrl) seenImages.add(c.imageUrl);
       models.forEach(m => seenModels.add(m));
@@ -401,12 +403,6 @@ JSONのみ:
       for (const item of items) addRakutenItem(item, null, r.amazonFallbackUrl, candidates);
     }
 
-    // Amazon商品を先頭に並べてからdedup（重複時はAmazon側を優先保持）
-    candidates.sort((a, b) => {
-      if (a.source === 'amazon' && b.source !== 'amazon') return -1;
-      if (a.source !== 'amazon' && b.source === 'amazon') return 1;
-      return 0;
-    });
     const products = deduplicateCandidates(candidates);
     results.push({ category, reason: group.reason, products });
   }
