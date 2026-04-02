@@ -399,6 +399,12 @@ JSONのみ:
       for (const item of items) addRakutenItem(item, null, r.amazonFallbackUrl, candidates);
     }
 
+    // Amazon商品を先頭に並べてからdedup（重複時はAmazon側を優先保持）
+    candidates.sort((a, b) => {
+      if (a.source === 'amazon' && b.source !== 'amazon') return -1;
+      if (a.source !== 'amazon' && b.source === 'amazon') return 1;
+      return 0;
+    });
     const products = deduplicateCandidates(candidates);
     results.push({ category, reason: group.reason, products });
   }
