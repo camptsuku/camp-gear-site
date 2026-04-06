@@ -145,7 +145,7 @@ async function searchAmazon(keyword, token, partnerTag) {
       partnerType: 'Associates',
       marketplace: 'www.amazon.co.jp',
       searchIndex: 'SportingGoods',
-      itemCount:   3,
+      itemCount:   5,
     }),
   });
   if (!res.ok) throw new Error(`Amazon search error: ${res.status}`);
@@ -185,7 +185,7 @@ export async function onRequestPost(context) {
   const categoryList = categories?.join('、') || 'テント、焚き火台、寝袋、チェア、テーブル、クッカー、ランタン';
 
   const conditionText = [campStyle, budget ? `予算${budget}` : ''].filter(Boolean).join('、') || 'こだわらない';
-  const prompt = `キャンプギア専門家として、以下の条件に合う日本で人気・高評価の${categoryList}本体製品を10件特定してください。
+  const prompt = `キャンプギア専門家として、以下の条件に合う日本で人気・高評価の${categoryList}本体製品を15件特定してください。
 ユーザー条件: ${conditionText}
 【絶対厳守】フィールドで使うキャンプ・アウトドア専用ギアのみ。以下は一切禁止：
 ・家電・調理家電（炊飯器・IH・電子レンジ・ホットプレート・低温調理器・ゆで卵メーカー等）
@@ -391,7 +391,7 @@ JSONのみ:
     const candidates = [];
 
     // Stage 1: Gemini キーワードで楽天・Amazon並列検索
-    const mainFetches = group.geminiProducts.slice(0, 10).map(p => {
+    const mainFetches = group.geminiProducts.slice(0, 15).map(p => {
       const keyword = buildSearchKeyword(p.searchKeyword, category);
       const amazonFallbackUrl = `https://www.amazon.co.jp/s?k=${encodeURIComponent(p.searchKeyword)}&tag=${AMAZON_TAG}`;
       const rakutenPromise = fetchRakuten(keyword).then(d => ({ p, d, amazonFallbackUrl })).catch(() => null);
@@ -408,7 +408,7 @@ JSONのみ:
       }
       // 楽天商品を後から追加（補完）
       if (rakutenResult) {
-        const items = findGoodItems(rakutenResult.d, category, 4);
+        const items = findGoodItems(rakutenResult.d, category, 6);
         for (const item of items) addRakutenItem(item, rakutenResult.p.brand, rakutenResult.amazonFallbackUrl, candidates);
       }
     }
