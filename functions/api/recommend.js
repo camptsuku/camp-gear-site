@@ -304,12 +304,8 @@ JSONのみ:
       .replace(/【[^】]*】|★[^★]*★|\[[^\]]*\]|《[^》]*》/g, '')
       .replace(/^(送料無料|在庫[^\s　]*|期間限定|数量限定|クーポン対象|ポイント[^\s　]*|レビュー[^\s　]*|セール|SALE|sale)[　\s]*/g, '')
       .replace(/^(送料無料|在庫[^\s　]*|期間限定|数量限定|クーポン対象|ポイント[^\s　]*|レビュー[^\s　]*|セール|SALE|sale)[　\s]*/g, '')
-      // セット数・個数・サイズ表記を除去（2セット→、Lサイズ→、3個→ など）
-      .replace(/[0-9０-９]+\s*(セット|個|枚|本|台|脚|人用|人対応|サイズ|cm|mm|kg|L|l)/g, '')
       .replace(/[　\s\-・\/\\|＿_~～。、！!？?◆◇■□▼△▲]/g, '')
       .replace(/[Ａ-Ｚａ-ｚ０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0))
-      // 数字を除去（型番チェックは別途extractModelNumbersで行うため）
-      .replace(/[0-9]/g, '')
       .toLowerCase()
       .trim();
   }
@@ -324,13 +320,16 @@ JSONのみ:
       if (result.length >= 20) break;
       if (c.itemCode && seenCodes.has(c.itemCode)) continue;
       if (c.imageUrl && seenImages.has(c.imageUrl)) continue;
-      const models = extractModelNumbers(c.rawTitle || c.title || '');
-      if (models.length > 0 && models.some(m => seenModels.has(m))) continue;
-      const normalizedPrefix = normalizeTitle(c.rawTitle || c.title || '').slice(0, 20);
+      const rawForModel = c.rawTitle || c.title || '';
+      const models = extractModelNumbers(rawForModel);
+      // 型番の前方一致チェック（CK-080 と CK-080R を同一視）
+      if (models.length > 0 && models.some(m =>
+        [...seenModels].some(seen => m.startsWith(seen) || seen.startsWith(m))
+      )) continue;
+      const normalizedPrefix = normalizeTitle(rawForModel).slice(0, 25);
       if (normalizedPrefix && seenPrefixes.has(normalizedPrefix)) continue;
-      // 既存prefixとの部分一致チェック（同商品の表記ゆれ対応）
-      if (normalizedPrefix && [...seenPrefixes].some(seen =>
-        normalizedPrefix.startsWith(seen) || seen.startsWith(normalizedPrefix)
+      if (normalizedPrefix.length >= 8 && [...seenPrefixes].some(seen =>
+        seen.length >= 8 && (normalizedPrefix.startsWith(seen) || seen.startsWith(normalizedPrefix))
       )) continue;
       if (c.itemCode) seenCodes.add(c.itemCode);
       if (c.imageUrl) seenImages.add(c.imageUrl);
