@@ -392,7 +392,7 @@ JSONのみ:
     const candidates = [];
 
     // Stage 1: Gemini キーワードで楽天・Amazon並列検索
-    const mainFetches = group.geminiProducts.slice(0, 15).map(p => {
+    const mainFetches = group.geminiProducts.slice(0, 5).map(p => {
       const keyword = buildSearchKeyword(p.searchKeyword, category);
       const amazonFallbackUrl = `https://www.amazon.co.jp/s?k=${encodeURIComponent(p.searchKeyword)}&tag=${AMAZON_TAG}`;
       const rakutenPromise = fetchRakuten(keyword).then(d => ({ p, d, amazonFallbackUrl })).catch(() => null);
@@ -419,7 +419,6 @@ JSONのみ:
     const catKw = CATEGORY_KEYWORDS[category]?.[0] || category;
     const fillFetches = [
       `アウトドア ${catKw} おすすめ`,
-      `キャンプ ${catKw} 人気`,
     ].map(kw => {
       const amazonFallbackUrl = `https://www.amazon.co.jp/s?k=${encodeURIComponent(kw)}&tag=${AMAZON_TAG}`;
       return fetchRakuten(kw).then(d => ({ d, amazonFallbackUrl })).catch(() => null);
