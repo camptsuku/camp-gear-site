@@ -53,9 +53,10 @@ const EXCLUDE_WORDS = [
   'ガーデンファニチャー', 'ガーデンテーブル', 'ガーデンチェア', 'テラス', 'ベランダ',
   'スクエアテーブル', 'カフェテーブル', 'ビストロ', 'パラソル', 'ガラステーブル',
   // 焚き火用消耗品・アクセサリー
-  '着火剤', '着火材', '燃料', '炭', 'チャッカマン', 'ライター', 'マッチ',
-  '焚き火シート', '耐火シート', 'スパッタシート', '防火シート', '耐火マット',
-  'グローブ', '革手袋', '火バサミ', 'トング', '灰', 'アッシュ',
+  '着火剤', '着火材', '燃料', 'チャッカマン', '焚き火シート', '耐火シート',
+  'スパッタシート', '防火シート', '耐火マット', '火バサミ', '灰受け',
+  // ネオン・装飾
+  'ネオン', 'ネオンサイン', 'LED看板', 'ウォールアート',
 ];
 
 const CATEGORY_KEYWORDS = {
@@ -413,6 +414,22 @@ JSONのみ:
       }
     }
 
+
+    // Stage 2: 補完検索（楽天のみ）
+    const catKw = CATEGORY_KEYWORDS[category]?.[0] || category;
+    const fillFetches = [
+      `アウトドア ${catKw} おすすめ`,
+      `キャンプ ${catKw} 人気`,
+    ].map(kw => {
+      const amazonFallbackUrl = `https://www.amazon.co.jp/s?k=${encodeURIComponent(kw)}&tag=${AMAZON_TAG}`;
+      return fetchRakuten(kw).then(d => ({ d, amazonFallbackUrl })).catch(() => null);
+    });
+    const fillResults = await Promise.all(fillFetches);
+    for (const r of fillResults) {
+      if (!r) continue;
+      const items = findGoodItems(r.d, category, 10);
+      for (const item of items) addRakutenItem(item, null, r.amazonFallbackUrl, candidates);
+    }
 
     const products = deduplicateCandidates(candidates);
     results.push({ category, reason: group.reason, products });
