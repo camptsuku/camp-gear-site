@@ -180,6 +180,8 @@ export async function onRequestPost(context) {
 JSONのみ:
 {"recommendations":[{"category":"テント","reason":"選定理由100字以内","products":[{"productName":"スノーピーク アメニティドームM","brand":"スノーピーク","searchKeyword":"スノーピーク アメニティドームM テント"}]}]}`;
 
+  console.log('Request body:', JSON.stringify({ campStyle, style, season, goal, categories, budget }));
+
   let recommendations;
   try {
     const geminiRes = await fetch(
@@ -207,6 +209,7 @@ JSONのみ:
     if (!jsonMatch) throw new Error('No JSON found in Gemini response');
     recommendations = JSON.parse(jsonMatch[0]).recommendations;
     if (!Array.isArray(recommendations)) throw new Error('recommendations is not array');
+    console.log('Gemini recommendations:', recommendations.length, 'categories, products:', recommendations.map(r => `${r.category}:${r.products?.length}`).join(', '));
   } catch (e) {
     return json({ error: 'Gemini error', detail: e.message }, 500);
   }
@@ -270,7 +273,11 @@ JSONのみ:
     for (const item of items) {
       if (found.length >= n) break;
       const name = item.Item?.itemName || '';
-      if (!isExcluded(name) && matchesCategory(name, category)) found.push(item.Item);
+      const excluded = isExcluded(name);
+      const matches = matchesCategory(name, category);
+      if (excluded) console.log(`[EXCLUDED] ${name.slice(0, 50)}`);
+      else if (!matches) console.log(`[NO_MATCH] cat=${category} ${name.slice(0, 50)}`);
+      if (!excluded && matches) found.push(item.Item);
     }
     return found;
   }
@@ -441,7 +448,9 @@ JSONのみ:
       for (const item of items) addRakutenItem(item, null, r.amazonFallbackUrl, candidates);
     }
 
+    console.log(`[${category}] candidates before dedup: ${candidates.length}`);
     const products = deduplicateCandidates(candidates);
+    console.log(`[${category}] products after dedup: ${products.length}`);
     results.push({ category, reason: group.reason, products });
   }
 
