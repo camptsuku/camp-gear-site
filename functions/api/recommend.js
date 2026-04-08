@@ -215,8 +215,9 @@ JSONのみ:
   if (AMAZON_CLIENT_ID && AMAZON_CLIENT_SECRET) {
     try {
       amazonToken = await getAmazonToken(AMAZON_CLIENT_ID, AMAZON_CLIENT_SECRET);
+      console.log('Amazon token OK:', amazonToken ? 'acquired' : 'empty');
     } catch (e) {
-      console.error('Amazon token error:', e.message);
+      console.error('Amazon token FAILED:', e.message, 'clientId:', AMAZON_CLIENT_ID ? 'set' : 'empty', 'secret:', AMAZON_CLIENT_SECRET ? 'set' : 'empty');
     }
   }
 
