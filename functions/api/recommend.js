@@ -39,6 +39,9 @@ const EXCLUDE_WORDS = [
   'こたつ', 'コタツ', '布団', 'ふとん', 'ベッド', '毛布', 'ブランケット', 'クッション', '枕', 'まくら',
   'ジャケット', 'パンツ', 'ウェア', 'レインウェア', 'グローブ', '手袋', '帽子', 'キャップ',
   'カセットコンロ', 'カセットガス', 'カセットフー', 'CB缶', 'CB-', 'イワタニ', 'テーブルコンロ', '鍋セット',
+  // ガス缶・燃料・消耗品
+  'ガス缶', 'OD缶', 'LP缶', 'IP-', 'ガスカートリッジ', '燃料ボトル', 'ホワイトガソリン',
+  '着火剤', '着火材', 'チャッカマン', '焚き火シート', 'スパッタシート',
   'イージーアップ', 'ワンタッチテント', 'イベントテント', 'タープテント', 'ワンタッチタープ',
   '運動会', '学校', 'パーティー', 'マーケット', 'EZ UP', 'EZUP',
   'ゲーミングチェア', 'オフィスチェア', 'デスクチェア', 'マッサージチェア', 'ダイニングチェア',
@@ -288,6 +291,15 @@ JSONのみ:
   }
 
   function extractBrandFromTitle(itemName) {
+    // 既知ブランドのマッチング
+    const knownBrands = ['Coleman', 'コールマン', 'snow peak', 'スノーピーク', 'LOGOS', 'ロゴス',
+      'PRIMUS', 'プリムス', 'Helinox', 'ヘリノックス', 'UNIFLAME', 'ユニフレーム',
+      'CAPTAIN STAG', 'キャプテンスタッグ', 'DOD', 'NANGA', 'ナンガ', 'mont-bell', 'モンベル',
+      'HILLEBERG', 'ヒルバーグ', 'MSR', 'FEUERHAND', 'フェアハンド', 'Dietz', 'デイツ',
+      'GENTOS', 'ジェントス', 'GOAL ZERO', 'trangia', 'トランギア'];
+    for (const b of knownBrands) {
+      if (itemName.includes(b)) return b;
+    }
     const ascii = itemName.match(/^([A-Za-z][A-Za-z0-9]*(?:[ \-][A-Z][A-Za-z0-9]*)?)/);
     if (ascii) return ascii[1].trim();
     const kana = itemName.match(/^([\u30A0-\u30FF]+)/);
@@ -322,11 +334,12 @@ JSONのみ:
   }
 
   function deduplicateCandidates(candidates) {
-    const seenCodes      = new Set();
-    const seenImages     = new Set();
-    const seenModels     = new Set();
-    const seenPrefixes   = new Set();
-    const seenBrandPrice = new Set();
+    const seenCodes       = new Set();
+    const seenImages      = new Set();
+    const seenModels      = new Set();
+    const seenPrefixes    = new Set();
+    const seenBrandPrice  = new Set();
+    const seenBrandPrefix = new Set();
     const result = [];
     for (const c of candidates) {
       if (result.length >= 20) break;
@@ -335,6 +348,8 @@ JSONのみ:
       const brandPriceKey = `${c.brand || ''}__${c.price || ''}`;
       if (c.brand && c.price && seenBrandPrice.has(brandPriceKey)) continue;
       const rawForModel = c.rawTitle || c.title || '';
+      const brandPrefixKey = `${c.brand || ''}__${normalizeTitle(rawForModel).slice(0, 15)}`;
+      if (c.brand && seenBrandPrefix.has(brandPrefixKey)) continue;
       const models = extractModelNumbers(rawForModel);
       // 型番の前方一致チェック（CK-080 と CK-080R を同一視）
       if (models.length > 0 && models.some(m =>
@@ -348,6 +363,7 @@ JSONのみ:
       if (c.itemCode) seenCodes.add(c.itemCode);
       if (c.imageUrl) seenImages.add(c.imageUrl);
       if (c.brand && c.price) seenBrandPrice.add(brandPriceKey);
+      if (c.brand) seenBrandPrefix.add(brandPrefixKey);
       models.forEach(m => seenModels.add(m));
       if (normalizedPrefix) seenPrefixes.add(normalizedPrefix);
       const { rawTitle, itemCode, ...product } = c;
