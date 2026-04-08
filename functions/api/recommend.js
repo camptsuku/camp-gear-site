@@ -192,7 +192,11 @@ JSONのみ:
         body: JSON.stringify({
           contents: [{ role: 'user', parts: [{ text: prompt }] }],
           tools: [{ googleSearch: {} }],
-          generationConfig: { temperature: 0.7, maxOutputTokens: 65536 },
+          generationConfig: {
+            temperature: 0.7,
+            maxOutputTokens: 8192,
+            thinkingConfig: { thinkingBudget: 0 },
+          },
         }),
       }
     );
@@ -202,7 +206,8 @@ JSONのみ:
     }
     const geminiData = await geminiRes.json();
     const parts = geminiData.candidates?.[0]?.content?.parts || [];
-    const rawText = parts.filter(p => p.text).map(p => p.text).join('');
+    // thinking parts（thought: true）を除外してテキストのみ結合
+    const rawText = parts.filter(p => p.text && !p.thought).map(p => p.text).join('');
     if (!rawText) return json({ error: 'No text response from Gemini' }, 500);
     const clean = rawText.replace(/```json|```/g, '').trim();
     const jsonMatch = clean.match(/\{[\s\S]*\}/);
