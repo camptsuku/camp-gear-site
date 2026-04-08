@@ -322,15 +322,18 @@ JSONのみ:
   }
 
   function deduplicateCandidates(candidates) {
-    const seenCodes    = new Set();
-    const seenImages   = new Set();
-    const seenModels   = new Set();
-    const seenPrefixes = new Set();
+    const seenCodes      = new Set();
+    const seenImages     = new Set();
+    const seenModels     = new Set();
+    const seenPrefixes   = new Set();
+    const seenBrandPrice = new Set();
     const result = [];
     for (const c of candidates) {
       if (result.length >= 20) break;
       if (c.itemCode && seenCodes.has(c.itemCode)) continue;
       if (c.imageUrl && seenImages.has(c.imageUrl)) continue;
+      const brandPriceKey = `${c.brand || ''}__${c.price || ''}`;
+      if (c.brand && c.price && seenBrandPrice.has(brandPriceKey)) continue;
       const rawForModel = c.rawTitle || c.title || '';
       const models = extractModelNumbers(rawForModel);
       // 型番の前方一致チェック（CK-080 と CK-080R を同一視）
@@ -344,6 +347,7 @@ JSONのみ:
       )) continue;
       if (c.itemCode) seenCodes.add(c.itemCode);
       if (c.imageUrl) seenImages.add(c.imageUrl);
+      if (c.brand && c.price) seenBrandPrice.add(brandPriceKey);
       models.forEach(m => seenModels.add(m));
       if (normalizedPrefix) seenPrefixes.add(normalizedPrefix);
       const { rawTitle, itemCode, ...product } = c;
