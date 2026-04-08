@@ -49,14 +49,6 @@ const EXCLUDE_WORDS = [
   'デスクライト', 'スタンドライト', 'フロアライト', '電球色', '昼白色',
   'ペットテント', '犬用テント', '猫用テント', 'キッズテント', '砂場テント',
   'ガーデニング', '植木', '鉢植え', 'プランター',
-  // ガーデン・屋外家具（キャンプ用でないもの）
-  'ガーデンファニチャー', 'ガーデンテーブル', 'ガーデンチェア', 'テラス', 'ベランダ',
-  'スクエアテーブル', 'カフェテーブル', 'ビストロ', 'パラソル', 'ガラステーブル',
-  // 焚き火用消耗品・アクセサリー
-  '着火剤', '着火材', '燃料', 'チャッカマン', '焚き火シート', '耐火シート',
-  'スパッタシート', '防火シート', '耐火マット', '火バサミ', '灰受け',
-  // ネオン・装飾
-  'ネオン', 'ネオンサイン', 'LED看板', 'ウォールアート',
 ];
 
 const CATEGORY_KEYWORDS = {
@@ -72,21 +64,10 @@ const CATEGORY_KEYWORDS = {
 
 const CATEGORY_EXCLUDES = {
   'テント':   ['イージーアップ', 'タープテント', 'ワンタッチタープ', 'イベント', '運動会', 'ペットテント', 'キッズテント', '砂場テント'],
-  'チェア':   ['ゲーミング', 'オフィス', 'デスクチェア', 'マッサージ', 'ダイニングチェア', 'バーチェア', 'ソファ',
-               'リクライニングソファ', 'パーソナルチェア', 'ストレッチ', 'ヨガ', 'ピアノ', 'スタッキング',
-               'ドレッサー', 'メイク', '美容', 'ネイル', 'キッズ', 'ベビー', '子供用', '学習', '勉強'],
-  'テーブル': ['ダイニングテーブル', '学習机', 'パソコンデスク', 'ワークデスク', 'オフィスデスク', 'システムデスク',
-               'センターテーブル', 'リビングテーブル', 'こたつテーブル', 'スタンディング', 'アイロン台',
-               'キッチンワゴン', 'バーテーブル', 'ドレッサー', 'ベッドサイド'],
-  'ランタン': ['シーリング', '蛍光灯', 'LED電球', 'ペンダントライト', 'デスクライト', 'スタンドライト',
-               'フロアライト', '電球色', '昼白色', 'ナイトライト', '常夜灯'],
-  'クッカー': ['家庭用コンロ', 'ガスコンロ', 'IHコンロ', '業務用コンロ'],
+  'チェア':   ['ゲーミング', 'オフィス', 'デスクチェア', 'マッサージ', 'ダイニングチェア', 'バーチェア', 'ソファ', 'リクライニングソファ', 'パーソナルチェア'],
+  'テーブル': ['ダイニングテーブル', '学習机', 'パソコンデスク', 'ワークデスク', 'オフィスデスク', 'システムデスク', 'センターテーブル', 'リビングテーブル', 'こたつテーブル'],
+  'ランタン': ['シーリング', '蛍光灯', 'LED電球', 'ペンダントライト', 'デスクライト', 'スタンドライト', 'フロアライト', '電球色', '昼白色'],
 };
-
-// チェア・テーブルはキャンプ文脈のシグナル語が必要
-const CAMP_SIGNAL_REQUIRED = new Set(['チェア', 'テーブル']);
-const CAMP_SIGNALS = ['キャンプ', 'アウトドア', 'フォールディング', '折りたたみ', 'コンパクト', 'ポータブル',
-                      'ローチェア', 'ハイチェア', 'ロールトップ', 'アルミ', 'チタン'];
 
 function isExcluded(name) {
   return EXCLUDE_WORDS.some(w => name.includes(w));
@@ -99,12 +80,7 @@ function matchesCategory(name, category) {
   }
   const excludes = CATEGORY_EXCLUDES[category] || [];
   if (excludes.some(w => name.includes(w))) return false;
-  if (!keywords.some(kw => name.includes(kw))) return false;
-  // チェア・テーブルはキャンプシグナル語も必要
-  if (CAMP_SIGNAL_REQUIRED.has(category)) {
-    return CAMP_SIGNALS.some(s => name.includes(s));
-  }
-  return true;
+  return keywords.some(kw => name.includes(kw));
 }
 
 // ── Amazon Creators API ──────────────────────────────────────────────
@@ -146,7 +122,7 @@ async function searchAmazon(keyword, token, partnerTag) {
       partnerType: 'Associates',
       marketplace: 'www.amazon.co.jp',
       searchIndex: 'SportingGoods',
-      itemCount:   5,
+      itemCount:   3,
     }),
   });
   if (!res.ok) throw new Error(`Amazon search error: ${res.status}`);
@@ -186,7 +162,7 @@ export async function onRequestPost(context) {
   const categoryList = categories?.join('、') || 'テント、焚き火台、寝袋、チェア、テーブル、クッカー、ランタン';
 
   const conditionText = [campStyle, budget ? `予算${budget}` : ''].filter(Boolean).join('、') || 'こだわらない';
-  const prompt = `キャンプギア専門家として、以下の条件に合う日本で人気・高評価の${categoryList}本体製品を15件特定してください。
+  const prompt = `キャンプギア専門家として、以下の条件に合う日本で人気・高評価の${categoryList}本体製品を10件特定してください。
 ユーザー条件: ${conditionText}
 【絶対厳守】フィールドで使うキャンプ・アウトドア専用ギアのみ。以下は一切禁止：
 ・家電・調理家電（炊飯器・IH・電子レンジ・ホットプレート・低温調理器・ゆで卵メーカー等）
@@ -320,7 +296,12 @@ JSONのみ:
   }
 
   function extractModelNumbers(title) {
-    return (title.match(/[A-Za-z]{1,5}-?[0-9]{2,6}[A-Za-z0-9-]*/g) || []).map(m => m.toUpperCase());
+    const results = [];
+    const alphaNum = title.match(/[A-Za-z]{1,5}-?[0-9]{2,6}[A-Za-z0-9-]*/g) || [];
+    results.push(...alphaNum.map(m => m.toUpperCase()));
+    const numOnly = title.match(/[0-9]{7,}/g) || [];
+    results.push(...numOnly);
+    return results;
   }
 
   function normalizeTitle(title) {
@@ -328,8 +309,14 @@ JSONのみ:
       .replace(/【[^】]*】|★[^★]*★|\[[^\]]*\]|《[^》]*》/g, '')
       .replace(/^(送料無料|在庫[^\s　]*|期間限定|数量限定|クーポン対象|ポイント[^\s　]*|レビュー[^\s　]*|セール|SALE|sale)[　\s]*/g, '')
       .replace(/^(送料無料|在庫[^\s　]*|期間限定|数量限定|クーポン対象|ポイント[^\s　]*|レビュー[^\s　]*|セール|SALE|sale)[　\s]*/g, '')
+      // 色・カラー表記を除去
+      .replace(/(サンド|カーキ|タン|グリーン|レッド|ブラック|ホワイト|ブラウン|ネイビー|オリーブ|イエロー|ベージュ|グレー|オレンジ|ブルー|Sand|Khaki|Green|Red|Black|White|Brown|Navy|Olive|Yellow|Beige|Gray|Grey|Orange|Blue)[　\s\/・]*/gi, '')
+      // XP・UL・EXなどのグレード表記を除去
+      .replace(/\b(XP|UL|EX|PRO|LITE|PLUS|MAX|MINI|NANO)\b/gi, '')
       .replace(/[　\s\-・\/\\|＿_~～。、！!？?◆◇■□▼△▲]/g, '')
       .replace(/[Ａ-Ｚａ-ｚ０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0))
+      // 数字を除去（型番チェックはextractModelNumbersで行う）
+      .replace(/[0-9]/g, '')
       .toLowerCase()
       .trim();
   }
@@ -392,7 +379,7 @@ JSONのみ:
     const candidates = [];
 
     // Stage 1: Gemini キーワードで楽天・Amazon並列検索
-    const mainFetches = group.geminiProducts.slice(0, 5).map(p => {
+    const mainFetches = group.geminiProducts.slice(0, 10).map(p => {
       const keyword = buildSearchKeyword(p.searchKeyword, category);
       const amazonFallbackUrl = `https://www.amazon.co.jp/s?k=${encodeURIComponent(p.searchKeyword)}&tag=${AMAZON_TAG}`;
       const rakutenPromise = fetchRakuten(keyword).then(d => ({ p, d, amazonFallbackUrl })).catch(() => null);
@@ -409,16 +396,16 @@ JSONのみ:
       }
       // 楽天商品を後から追加（補完）
       if (rakutenResult) {
-        const items = findGoodItems(rakutenResult.d, category, 6);
+        const items = findGoodItems(rakutenResult.d, category, 4);
         for (const item of items) addRakutenItem(item, rakutenResult.p.brand, rakutenResult.amazonFallbackUrl, candidates);
       }
     }
-
 
     // Stage 2: 補完検索（楽天のみ）
     const catKw = CATEGORY_KEYWORDS[category]?.[0] || category;
     const fillFetches = [
       `アウトドア ${catKw} おすすめ`,
+      `キャンプ ${catKw} 人気`,
     ].map(kw => {
       const amazonFallbackUrl = `https://www.amazon.co.jp/s?k=${encodeURIComponent(kw)}&tag=${AMAZON_TAG}`;
       return fetchRakuten(kw).then(d => ({ d, amazonFallbackUrl })).catch(() => null);
