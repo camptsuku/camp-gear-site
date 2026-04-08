@@ -133,6 +133,7 @@ async function searchAmazon(keyword, token, partnerTag) {
   if (!res.ok) throw new Error(`Amazon search error: ${res.status}`);
   const data = await res.json();
   const items = data.searchResult?.items || data.itemsResult?.items || [];
+  console.log('Amazon search result:', keyword, items.length, 'items');
   return items.map(item => ({
     title:       (item.itemInfo?.title?.displayValue || '').slice(0, 60),
     brand:       item.itemInfo?.byLineInfo?.brand?.displayValue || null,
