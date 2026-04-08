@@ -346,7 +346,7 @@ JSONのみ:
     const seenBrandPrefix = new Set();
     const result = [];
     for (const c of candidates) {
-      if (result.length >= 20) break;
+      if (result.length >= 10) break;
       if (c.itemCode && seenCodes.has(c.itemCode)) continue;
       if (c.imageUrl && seenImages.has(c.imageUrl)) continue;
       const brandPriceKey = `${c.brand || ''}__${c.price || ''}`;
@@ -423,22 +423,6 @@ JSONのみ:
         const items = findGoodItems(rakutenResult.d, category, 4);
         for (const item of items) addRakutenItem(item, rakutenResult.p.brand, rakutenResult.amazonFallbackUrl, candidates);
       }
-    }
-
-    // Stage 2: 補完検索（楽天のみ）
-    const catKw = CATEGORY_KEYWORDS[category]?.[0] || category;
-    const fillFetches = [
-      `アウトドア ${catKw} おすすめ`,
-      `キャンプ ${catKw} 人気`,
-    ].map(kw => {
-      const amazonFallbackUrl = `https://www.amazon.co.jp/s?k=${encodeURIComponent(kw)}&tag=${AMAZON_TAG}`;
-      return fetchRakuten(kw).then(d => ({ d, amazonFallbackUrl })).catch(() => null);
-    });
-    const fillResults = await Promise.all(fillFetches);
-    for (const r of fillResults) {
-      if (!r) continue;
-      const items = findGoodItems(r.d, category, 10);
-      for (const item of items) addRakutenItem(item, null, r.amazonFallbackUrl, candidates);
     }
 
     const products = deduplicateCandidates(candidates);
