@@ -359,7 +359,7 @@ JSONのみ:
       const brandPriceKey = `${c.brand || ''}__${c.price || ''}`;
       if (c.brand && c.price && seenBrandPrice.has(brandPriceKey)) continue;
       const rawForModel = c.rawTitle || c.title || '';
-      const brandPrefixKey = `${c.brand || ''}__${normalizeTitle(rawForModel).slice(0, 15)}`;
+      const brandPrefixKey = `${c.brand || ''}__${normalizeTitle(rawForModel).slice(0, 10)}`;
       if (c.brand && seenBrandPrefix.has(brandPrefixKey)) continue;
       const models = extractModelNumbers(rawForModel);
       // 型番の前方一致チェック（CK-080 と CK-080R を同一視）
