@@ -332,8 +332,10 @@ JSONのみ:
       .replace(/【[^】]*】|★[^★]*★|\[[^\]]*\]|《[^》]*》/g, '')
       .replace(/^(送料無料|在庫[^\s　]*|期間限定|数量限定|クーポン対象|ポイント[^\s　]*|レビュー[^\s　]*|セール|SALE|sale)[　\s]*/g, '')
       .replace(/^(送料無料|在庫[^\s　]*|期間限定|数量限定|クーポン対象|ポイント[^\s　]*|レビュー[^\s　]*|セール|SALE|sale)[　\s]*/g, '')
-      // 色・カラー表記を除去
+      // 色・カラー表記を除去（フルネーム）
       .replace(/(サンド|カーキ|タン|グリーン|レッド|ブラック|ホワイト|ブラウン|ネイビー|オリーブ|イエロー|ベージュ|グレー|オレンジ|ブルー|Sand|Khaki|Green|Red|Black|White|Brown|Navy|Olive|Yellow|Beige|Gray|Grey|Orange|Blue)[　\s\/・]*/gi, '')
+      // 色略語を除去（KHK=カーキ, BEG/BGE=ベージュ, BLK=黒, WHT=白等）
+      .replace(/\b(KHK|BEG|BGE|BLK|WHT|NVY|OLV|GRN|GRY|BLU|TAN|RED)\b/gi, '')
       // XP・UL・EXなどのグレード表記を除去
       .replace(/\b(XP|UL|EX|PRO|LITE|PLUS|MAX|MINI|NANO)\b/gi, '')
       .replace(/[　\s\-・\/\\|＿_~～。、！!？?◆◇■□▼△▲]/g, '')
@@ -359,7 +361,7 @@ JSONのみ:
       const brandPriceKey = `${c.brand || ''}__${c.price || ''}`;
       if (c.brand && c.price && seenBrandPrice.has(brandPriceKey)) continue;
       const rawForModel = c.rawTitle || c.title || '';
-      const brandPrefixKey = `${c.brand || ''}__${normalizeTitle(rawForModel).slice(0, 10)}`;
+      const brandPrefixKey = `${(c.brand || '').toLowerCase()}__${normalizeTitle(rawForModel).slice(0, 10)}`;
       if (c.brand && seenBrandPrefix.has(brandPrefixKey)) continue;
       const models = extractModelNumbers(rawForModel);
       // 型番の前方一致チェック（CK-080 と CK-080R を同一視）
