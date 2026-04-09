@@ -185,7 +185,7 @@ JSONのみ:
   let recommendations;
   try {
     const geminiRes = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-001:generateContent?key=${GEMINI_API_KEY}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -202,43 +202,21 @@ JSONのみ:
     );
     if (!geminiRes.ok) {
       const err = await geminiRes.text();
-      console.error('Gemini API error:', geminiRes.status, err);
-      recommendations = [];
-    } else {
-      const geminiData = await geminiRes.json();
-      const parts = geminiData.candidates?.[0]?.content?.parts || [];
-      // thinking parts（thought: true）を除外してテキストのみ結合
-      const rawText = parts.filter(p => p.text && !p.thought).map(p => p.text).join('');
-      if (!rawText) {
-        console.error('No text response from Gemini');
-        recommendations = [];
-      } else {
-        const clean = rawText.replace(/```json|```/g, '').trim();
-        const jsonMatch = clean.match(/\{[\s\S]*\}/);
-        if (!jsonMatch) {
-          console.error('No JSON found in Gemini response:', rawText.slice(0, 200));
-          recommendations = [];
-        } else {
-          recommendations = JSON.parse(jsonMatch[0]).recommendations;
-          if (!Array.isArray(recommendations)) recommendations = [];
-          console.log('Gemini recommendations:', recommendations.length, 'categories, products:', recommendations.map(r => `${r.category}:${r.products?.length}`).join(', '));
-        }
-      }
+      return json({ error: `Gemini API error (${geminiRes.status})`, detail: err }, 500);
     }
+    const geminiData = await geminiRes.json();
+    const parts = geminiData.candidates?.[0]?.content?.parts || [];
+    // thinking parts（thought: true）を除外してテキストのみ結合
+    const rawText = parts.filter(p => p.text && !p.thought).map(p => p.text).join('');
+    if (!rawText) return json({ error: 'No text response from Gemini' }, 500);
+    const clean = rawText.replace(/```json|```/g, '').trim();
+    const jsonMatch = clean.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error('No JSON found in Gemini response');
+    recommendations = JSON.parse(jsonMatch[0]).recommendations;
+    if (!Array.isArray(recommendations)) throw new Error('recommendations is not array');
+    console.log('Gemini recommendations:', recommendations.length, 'categories, products:', recommendations.map(r => `${r.category}:${r.products?.length}`).join(', '));
   } catch (e) {
-    console.error('Gemini error:', e.message);
-    recommendations = [];
-  }
-
-  // Gemini失敗時フォールバック: カテゴリごとに基本キーワードで検索
-  if (recommendations.length === 0) {
-    console.log('Gemini fallback: using categoryList', categories);
-    const fallbackCats = categories?.length ? categories : Object.keys(CATEGORY_KEYWORDS);
-    recommendations = fallbackCats.map(cat => ({
-      category: cat,
-      reason: `${cat}のおすすめ商品`,
-      products: [{ productName: cat, brand: null, searchKeyword: `キャンプ ${cat} おすすめ` }],
-    }));
+    return json({ error: 'Gemini error', detail: e.message }, 500);
   }
 
   // ── Amazon トークンを事前取得（失敗してもフォールバック） ──
