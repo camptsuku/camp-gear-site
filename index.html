@@ -1033,6 +1033,12 @@
         body: JSON.stringify(apiBody)
       });
       const json = await res.json();
+      if (json.error) {
+        stopLoaderMessages();
+        alert('APIエラー: ' + json.error + (json.detail ? '\n' + String(json.detail).slice(0, 200) : ''));
+        restart();
+        return;
+      }
       completeProgress(() => render(json.results || []));
     } catch(e) {
       stopLoaderMessages();
