@@ -432,23 +432,7 @@ JSONのみ:
       }
     }
 
-    // Stage 2: 補完検索（楽天のみ）
-    const catKw = CATEGORY_KEYWORDS[category]?.[0] || category;
-    const fillFetches = [
-      `アウトドア ${catKw} おすすめ`,
-      `キャンプ ${catKw} 人気`,
-    ].map(kw => {
-      const amazonFallbackUrl = `https://www.amazon.co.jp/s?k=${encodeURIComponent(kw)}&tag=${AMAZON_TAG}`;
-      return fetchRakuten(kw).then(d => ({ d, amazonFallbackUrl })).catch(() => null);
-    });
-    const fillResults = await Promise.all(fillFetches);
-    for (const r of fillResults) {
-      if (!r) continue;
-      const items = findGoodItems(r.d, category, 10);
-      for (const item of items) addRakutenItem(item, null, r.amazonFallbackUrl, candidates);
-    }
-
-    console.log(`[${category}] candidates before dedup: ${candidates.length}`);
+console.log(`[${category}] candidates before dedup: ${candidates.length}`);
     const products = deduplicateCandidates(candidates);
     console.log(`[${category}] products after dedup: ${products.length}`);
     results.push({ category, reason: group.reason, products });
