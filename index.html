@@ -1034,7 +1034,12 @@
       const json = await res.json();
       if (json.error) {
         stopLoaderMessages();
-        alert('APIエラー: ' + json.error + (json.detail ? '\n' + String(json.detail).slice(0, 200) : ''));
+        const isOverload = json.detail && String(json.detail).includes('503');
+        alert(isOverload
+          ? 'ただいまアクセスが集中しています。
+しばらく待ってからもう一度お試しください。'
+          : '申し訳ありません。エラーが発生しました。
+もう一度お試しください。');
         restart();
         return;
       }
