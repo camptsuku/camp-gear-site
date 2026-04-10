@@ -184,17 +184,24 @@ JSONのみ:
 
   let recommendations;
   try {
-    const geminiRes = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
-      {
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+    const geminiBody = JSON.stringify({
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      generationConfig: { temperature: 0.7, maxOutputTokens: 8192 },
+    });
+    let geminiRes = await fetch(geminiUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: geminiBody,
+    });
+    if (!geminiRes.ok && geminiRes.status === 503) {
+      await new Promise(r => setTimeout(r, 3000));
+      geminiRes = await fetch(geminiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ role: 'user', parts: [{ text: prompt }] }],
-          generationConfig: { temperature: 0.7, maxOutputTokens: 8192 },
-        }),
-      }
-    );
+        body: geminiBody,
+      });
+    }
     if (!geminiRes.ok) {
       const err = await geminiRes.text();
       return json({ error: `Gemini API error (${geminiRes.status})`, detail: err }, 500);
