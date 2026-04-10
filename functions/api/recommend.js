@@ -196,27 +196,47 @@ JSONのみ:
     });
     if (!geminiRes.ok && geminiRes.status === 503) {
       await new Promise(r => setTimeout(r, 3000));
-      geminiRes = await fetch(geminiUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: geminiBody,
-      });
-    }
-    if (!geminiRes.ok) {
+      const retryRes = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ role: 'user', parts: [{ text: prompt }] }],
+            tools: [{ googleSearch: {} }],
+            generationConfig: { temperature: 0.7, maxOutputTokens: 65536 },
+          }),
+        }
+      );
+      if (retryRes.ok) {
+        const retryData = await retryRes.json();
+        const retryParts = retryData.candidates?.[0]?.content?.parts || [];
+        const retryText = retryParts.filter(p => p.text && !p.thought).map(p => p.text).join('');
+        const retryClean = retryText.replace(/```json|```/g, '').trim();
+        const retryMatch = retryClean.match(/\{[\s\S]*\}/);
+        if (retryMatch) {
+          recommendations = JSON.parse(retryMatch[0]).recommendations;
+          if (!Array.isArray(recommendations)) throw new Error('recommendations is not array');
+        }
+      } else {
+        return json({ error: `Gemini API error (${retryRes.status})`, detail: await retryRes.text() }, 500);
+      }
+    } else if (!geminiRes.ok) {
       const err = await geminiRes.text();
       return json({ error: `Gemini API error (${geminiRes.status})`, detail: err }, 500);
+    } else {
+      const geminiData = await geminiRes.json();
+      const parts = geminiData.candidates?.[0]?.content?.parts || [];
+      // thinking parts（thought: true）を除外してテキストのみ結合
+      const rawText = parts.filter(p => p.text && !p.thought).map(p => p.text).join('');
+      if (!rawText) return json({ error: 'No text response from Gemini' }, 500);
+      const clean = rawText.replace(/```json|```/g, '').trim();
+      const jsonMatch = clean.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) throw new Error('No JSON found in Gemini response');
+      recommendations = JSON.parse(jsonMatch[0]).recommendations;
+      if (!Array.isArray(recommendations)) throw new Error('recommendations is not array');
+      console.log('Gemini recommendations:', recommendations.length, 'categories, products:', recommendations.map(r => `${r.category}:${r.products?.length}`).join(', '));
     }
-    const geminiData = await geminiRes.json();
-    const parts = geminiData.candidates?.[0]?.content?.parts || [];
-    // thinking parts（thought: true）を除外してテキストのみ結合
-    const rawText = parts.filter(p => p.text && !p.thought).map(p => p.text).join('');
-    if (!rawText) return json({ error: 'No text response from Gemini' }, 500);
-    const clean = rawText.replace(/```json|```/g, '').trim();
-    const jsonMatch = clean.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error('No JSON found in Gemini response');
-    recommendations = JSON.parse(jsonMatch[0]).recommendations;
-    if (!Array.isArray(recommendations)) throw new Error('recommendations is not array');
-    console.log('Gemini recommendations:', recommendations.length, 'categories, products:', recommendations.map(r => `${r.category}:${r.products?.length}`).join(', '));
   } catch (e) {
     return json({ error: 'Gemini error', detail: e.message }, 500);
   }
