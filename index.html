@@ -1036,10 +1036,8 @@
         stopLoaderMessages();
         const isOverload = json.detail && String(json.detail).includes('503');
         alert(isOverload
-          ? 'ただいまアクセスが集中しています。
-しばらく待ってからもう一度お試しください。'
-          : '申し訳ありません。エラーが発生しました。
-もう一度お試しください。');
+          ? 'ただいまアクセスが集中しています。\nしばらく待ってからもう一度お試しください。'
+          : '申し訳ありません。エラーが発生しました。\nもう一度お試しください。');
         restart();
         return;
       }
