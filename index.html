@@ -1037,7 +1037,7 @@
         const isOverload = json.detail && String(json.detail).includes('503');
         alert(isOverload
           ? 'ただいまアクセスが集中しています。\nしばらく待ってからもう一度お試しください。'
-          : '申し訳ありません。エラーが発生しました。\nもう一度お試しください。');
+          : '申し訳ありません。エラーが発生しました。\n' + json.error + (json.detail ? '\n' + String(json.detail).slice(0, 300) : ''));
         restart();
         return;
       }
